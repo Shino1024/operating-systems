@@ -33,20 +33,24 @@ int free_array_dynamic(array_dynamic **ad) {
 	free((*ad)->array);
 	*ad = NULL;
 
-	return 0;i
+	return 0;
 }
 
 int append_block_dynamic(array_dynamic *ad, unsigned int index) {
-	if (ad->array == NULL) {
+	if (ad == NULL) {
 		return -1;
 	}
 
-	if (ad->array_size <= index) {
+	if (ad->array == NULL) {
 		return -2;
 	}
 
-	if (ad->array[index] != NULL) {
+	if (ad->array_size <= index) {
 		return -3;
+	}
+
+	if (ad->array[index] != NULL) {
+		return -4;
 	}
 
 	ad->array[index] = (block) calloc(ad->block_size, sizeof(chunk));
@@ -56,16 +60,20 @@ int append_block_dynamic(array_dynamic *ad, unsigned int index) {
 }
 
 int pop_block_dynamic(array_dynamic *ad, unsigned int index) {
-	if (ad->array == NULL) {
+	if (ad == NULL) {
 		return -1;
 	}
 
-	if (ad->array_size <= index) {
+	if (ad->array == NULL) {
 		return -2;
 	}
 
-	if (ad->array[index] == NULL) {
+	if (ad->array_size <= index) {
 		return -3;
+	}
+
+	if (ad->array[index] == NULL) {
+		return -4;
 	}
 
 	free(ad->array[index]);
@@ -75,16 +83,20 @@ int pop_block_dynamic(array_dynamic *ad, unsigned int index) {
 }
 
 unsigned int find_most_matching_block_dynamic(array_dynamic *ad, unsigned int index) {
-	if (ad->array == NULL) {
+	if (ad == NULL) {
 		return -1;
 	}
 
-	if (index >= ad->array_size) {
+	if (ad->array == NULL) {
 		return -2;
 	}
 
-	if (ad->array[index] == NULL) {
+	if (index >= ad->array_size) {
 		return -3;
+	}
+
+	if (ad->array[index] == NULL) {
+		return -4;
 	}
 
 	long chosen_sum = 0;
@@ -92,9 +104,10 @@ unsigned int find_most_matching_block_dynamic(array_dynamic *ad, unsigned int in
 	for (j = 0; j < ad->array_size; ++j) {
 		chosen_sum += (long) ad->array[index][j];
 	}
+
 	long difference;
 	long min_difference = LONG_MAX;
-	int min_index = -4;
+	int min_index = -5;
 	long sum;
 	for (i = 0; i < ad->array_size; ++i) {
 		if (i == index) {
