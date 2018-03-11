@@ -24,6 +24,6 @@ int append_block(unsigned int i);
 
 int pop_block(unsigned int i);
 
-unsigned int find_most_matching_element();
+unsigned int find_most_matching_element(unsigned int index);
 
 #endif // ARRAY_STATIC__H

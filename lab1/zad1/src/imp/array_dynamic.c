@@ -101,7 +101,7 @@ unsigned int find_most_matching_block_dynamic(array_dynamic *ad, unsigned int in
 
 	long chosen_sum = 0;
 	unsigned int i, j;
-	for (j = 0; j < ad->array_size; ++j) {
+	for (j = 0; j < ad->block_size; ++j) {
 		chosen_sum += (long) ad->array[index][j];
 	}
 
@@ -127,6 +127,7 @@ unsigned int find_most_matching_block_dynamic(array_dynamic *ad, unsigned int in
 			min_difference = difference;
 			min_index = i;
 		}
+		printf("%d, %ld, %ld\n", i, sum, difference);
 	}
 
 	return min_index;

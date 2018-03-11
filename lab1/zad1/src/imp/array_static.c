@@ -59,9 +59,10 @@ unsigned int find_most_matching_element(unsigned int index) {
 
 	long chosen_sum = 0;
 	unsigned int i, j;
-	for (i = 0; i < MAX_BLOCK_SIZE; ++i) {
+	for (j = 0; j < MAX_BLOCK_SIZE; ++j) {
 		chosen_sum += (long) array_static[index][j];
 	}
+	printf("Chosen sum: %ld\n", chosen_sum);
 
 	long difference;
 	long min_difference = LONG_MAX;
