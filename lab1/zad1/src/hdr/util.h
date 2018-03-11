@@ -11,6 +11,8 @@
 
 #define ABS(x) (x) > 0 ? (x) : -(x)
 
+#define ZERO(x) memset((x), 0, sizeof((x)))
+
 void gen_data(char *blk, unsigned int block_size);
 
 #endif // UTIL__H

@@ -5,9 +5,12 @@
 #include "../hdr/array_static.h"
 #include "../hdr/util.h"
 
+char array_static[MAX_BLOCK_NUMBER][MAX_BLOCK_SIZE];
+int size;
+
 void zero_out_static_array() {
 	size = 0;
-	memset(array_static, 0, sizeof(array_static));
+	ZERO(array_static);	
 }
 
 int append_block() {
@@ -27,7 +30,7 @@ int pop_block() {
 	}
 
 	--size;
-	memset(array_static[size], 0, MAX_BLOCK_SIZE);
+	ZERO(array_static[size]);
 
 	return 0;
 }
@@ -37,8 +40,9 @@ int find_most_matching_element() {
 		return -1;
 	}
 
-	long matches_differences[size];
-	memset(matches_differences, 0, sizeof(matches_differences));
+	long difference;
+	long min_difference = LONG_MAX;
+	int min_indice = 0;
 	unsigned int i, j;
 	long sum = 0;
 	for (i = 0; i < size; ++i) {
@@ -46,18 +50,13 @@ int find_most_matching_element() {
 			sum += (long) array_static[i][j];
 		}
 		
-		matches_differences[i] = ABS(sum - i);
-		printf("%d, %ld, %ld\n", i, sum, matches_differences[i]);
-		sum = 0;
-	}
-
-	long min_difference = LONG_MAX;
-	int min_indice;
-	for (i = 0; i < size; ++i) {
-		if (matches_differences[i] < min_difference) {
-			min_difference = matches_differences[i];
+		difference = ABS(sum - i);
+		if (difference < min_difference) {
+			min_difference = difference;
 			min_indice = i;
 		}
+		printf("%d, %ld, %ld\n", i, sum, difference);
+		sum = 0;
 	}
 
 	return min_indice;
