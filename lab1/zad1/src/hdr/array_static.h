@@ -20,10 +20,10 @@ int make_static_array();
 
 int zero_out_static_array();
 
-int append_block(unsigned int i);
+int append_block_static(unsigned int index);
 
-int pop_block(unsigned int i);
+int pop_block_static(unsigned int index);
 
-unsigned int find_most_matching_element(unsigned int index);
+unsigned int find_most_matching_block_static(unsigned int index);
 
 #endif // ARRAY_STATIC__H

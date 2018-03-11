@@ -2,6 +2,7 @@
 #include <limits.h>
 
 #include "../hdr/array_dynamic.h"
+#include "../hdr/util.h"
 
 array_dynamic * make_array_dynamic(unsigned int array_size, unsigned int block_size) {
 	array_dynamic *ad_ret = (array_dynamic *) calloc(1, sizeof(array_dynamic));
@@ -127,7 +128,6 @@ unsigned int find_most_matching_block_dynamic(array_dynamic *ad, unsigned int in
 			min_difference = difference;
 			min_index = i;
 		}
-		printf("%d, %ld, %ld\n", i, sum, difference);
 	}
 
 	return min_index;

@@ -18,37 +18,37 @@ int zero_out_static_array() {
 	return 0;
 }
 
-int append_block(unsigned int i) {
-	if (i >= MAX_BLOCK_NUMBER) {
+int append_block_static(unsigned int index) {
+	if (index >= MAX_BLOCK_NUMBER) {
 		return -1;
 	}
 
-	if (alloc_info[i] != 0) {
+	if (alloc_info[index] != 0) {
 		return -2;
 	}
 
-	gen_data(array_static[i], MAX_BLOCK_SIZE);
-	alloc_info[i] = 1;	
+	gen_data(array_static[index], MAX_BLOCK_SIZE);
+	alloc_info[index] = 1;
 
 	return 0;
 }
 
-int pop_block(unsigned int i) {
-	if (i >= MAX_BLOCK_NUMBER) {
+int pop_block_static(unsigned int index) {
+	if (index >= MAX_BLOCK_NUMBER) {
 		return -1;
 	}
 
-	if (alloc_info[i] == 0) {
+	if (alloc_info[index] == 0) {
 		return -2;
 	}
 
-	ZERO(array_static[i]);
-	alloc_info[i] = 0;
+	ZERO(array_static[index]);
+	alloc_info[index] = 0;
 
 	return 0;
 }
 
-unsigned int find_most_matching_element(unsigned int index) {
+unsigned int find_most_matching_block_static(unsigned int index) {
 	if (index >= MAX_BLOCK_NUMBER) {
 		return -1;
 	}
@@ -62,7 +62,6 @@ unsigned int find_most_matching_element(unsigned int index) {
 	for (j = 0; j < MAX_BLOCK_SIZE; ++j) {
 		chosen_sum += (long) array_static[index][j];
 	}
-	printf("Chosen sum: %ld\n", chosen_sum);
 
 	long difference;
 	long min_difference = LONG_MAX;
@@ -87,7 +86,6 @@ unsigned int find_most_matching_element(unsigned int index) {
 			min_difference = difference;
 			min_index = i;
 		}
-		printf("%d, %ld, %ld\n", i, sum, difference);
 	}
 
 	return min_index;

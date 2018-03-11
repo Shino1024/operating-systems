@@ -1,4 +1,9 @@
+#include <stdlib.h>
+#include <sys/time.h>
+#include <limits.h>
+
 #include "../hdr/util.h"
+#include "../hdr/typedefs.h"
 
 void gen_data(char *blk, unsigned int block_size) {
 	struct timeval tv;
