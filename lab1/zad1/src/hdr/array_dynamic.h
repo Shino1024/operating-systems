@@ -11,6 +11,6 @@ int append_block_dynamic(array_dynamic *ad, unsigned int index);
 
 int pop_block_dynamic(array_dynamic *ad, unsigned int index);
 
-int find_most_matching_element_dynamic(array_dynamic *ad);
+unsigned int find_most_matching_element_dynamic(array_dynamic *ad, unsigned int index);
 
 #endif // ARRAY_DYNAMIC__H

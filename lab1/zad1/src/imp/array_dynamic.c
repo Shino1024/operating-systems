@@ -33,74 +33,88 @@ int free_array_dynamic(array_dynamic **ad) {
 	free((*ad)->array);
 	*ad = NULL;
 
-	return 0;
+	return 0;i
 }
 
-int append_block_dynamic(array_dynamic *ad, unsigned int i) {
+int append_block_dynamic(array_dynamic *ad, unsigned int index) {
 	if (ad->array == NULL) {
 		return -1;
 	}
 
-	if (ad->array_size <= i) {
+	if (ad->array_size <= index) {
 		return -2;
 	}
 
-	if (ad->array[i] != NULL) {
+	if (ad->array[index] != NULL) {
 		return -3;
 	}
 
-	ad->array[i] = (block) calloc(ad->block_size, sizeof(chunk));
-	gen_data(ad->array[i], ad->block_size);
+	ad->array[index] = (block) calloc(ad->block_size, sizeof(chunk));
+	gen_data(ad->array[index], ad->block_size);
 
 	return 0;
 }
 
-int pop_block_dynamic(array_dynamic *ad, unsigned int i) {
+int pop_block_dynamic(array_dynamic *ad, unsigned int index) {
 	if (ad->array == NULL) {
 		return -1;
 	}
 
-	if (ad->array_size <= i) {
+	if (ad->array_size <= index) {
 		return -2;
 	}
 
-	if (ad->array[i] == NULL) {
+	if (ad->array[index] == NULL) {
 		return -3;
 	}
 
-	free(ad->array[i]);
-	ad->array[i] = NULL;
+	free(ad->array[index]);
+	ad->array[index] = NULL;
 
 	return 0;
 }
 
-int find_most_matching_element_dynamic(array_dynamic *ad) {
+unsigned int find_most_matching_block_dynamic(array_dynamic *ad, unsigned int index) {
 	if (ad->array == NULL) {
 		return -1;
 	}
 
+	if (index >= ad->array_size) {
+		return -2;
+	}
+
+	if (ad->array[index] == NULL) {
+		return -3;
+	}
+
+	long chosen_sum = 0;
+	unsigned int i, j;
+	for (j = 0; j < ad->array_size; ++j) {
+		chosen_sum += (long) ad->array[index][j];
+	}
 	long difference;
 	long min_difference = LONG_MAX;
-	int min_indice = 0;
-	unsigned int i, j;
-	long sum = 0;
+	int min_index = -4;
+	long sum;
 	for (i = 0; i < ad->array_size; ++i) {
+		if (i == index) {
+			continue;
+		}
+
 		if (ad->array[i] == NULL) {
 			continue;
 		}
 
+		sum = 0;
 		for (j = 0; j < ad->block_size; ++j) {
 			sum += (long) ad->array[i][j];
 		}
-
-		difference = ABS(sum - i);
+		difference = ABS(chosen_sum - sum);
 		if (difference < min_difference) {
 			min_difference = difference;
-			min_indice = i;
+			min_index = i;
 		}
-
-		sum = 0;
 	}
 
-	return min_indice;
+	return min_index;
 }
