@@ -6,31 +6,39 @@
 #include "../hdr/util.h"
 
 char array_static[MAX_BLOCK_NUMBER][MAX_BLOCK_SIZE];
-int size;
+char alloc_info[MAX_BLOCK_NUMBER];
 
-void zero_out_static_array() {
-	size = 0;
-	ZERO(array_static);	
+int make_static_array() {
+	return 0;
 }
 
-int append_block() {
-	if (size >= MAX_BLOCK_NUMBER) {
+int zero_out_static_array() {
+	ZERO(array_static);
+	return 0;
+}
+
+int append_block(unsigned int i) {
+	if (i >= MAX_BLOCK_NUMBER) {
 		return -1;
 	}
 
-	gen_data(array_static[size], MAX_BLOCK_SIZE);
-	++size;
+	if (alloc_info[i] != 0) {
+		return -2;
+	}
+
+	gen_data(array_static[i], MAX_BLOCK_SIZE);
+	alloc_info[i] = 1;	
 
 	return 0;
 }
 
-int pop_block() {
+int pop_block(unsigned int i) {
 	if (size <= 0) {
 		return -1;
 	}
 
-	--size;
-	ZERO(array_static[size]);
+	ZERO(array_static[i]);
+	alloc_info[i] = 0;
 
 	return 0;
 }

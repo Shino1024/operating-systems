@@ -14,13 +14,12 @@
 #endif // MAX_BLOCK_SIZE
 
 extern char array_static[MAX_BLOCK_NUMBER][MAX_BLOCK_SIZE];
-extern int size;
 
 void zero_out_static_array();
 
-int append_block();
+int append_block(unsigned int i);
 
-int pop_block();
+int pop_block(unsigned int i);
 
 int find_most_matching_element();
 
