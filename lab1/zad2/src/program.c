@@ -10,17 +10,13 @@
 #include "hdr/array_dynamic.h"
 #include "hdr/array_static.h"
 
-#define COMMAND_NUMBER 3
+#ifndef MAX_COMMAND_NUMBER
+	#define MAX_COMMAND_NUMBER 3
+#endif // MAX_COMMAND_NUMBER
 
-#define REPEATS 10000
-
-#define RESULT_FILENAME "raport2.txt"
-
-typedef enum command_type {
-	FIND = 'f',
-	REMOVE_ADD = 'x',
-	REMOVE_ADD_ALTERNATIVELY = 'y',
-} command_type;
+#ifndef RESULT_FILENAME
+	#define RESULT_FILENAME "raport2.txt"
+#endif // RESULT_FILENAME
 
 typedef struct command {
 	command_type type;
@@ -32,14 +28,68 @@ typedef enum alloc_method {
 	DYNAMIC,
 } alloc_method;
 
+unsigned int trials = { 1E1, 1E2, 1E3, 1E4, 1E5, 1E6, 1E7 };
+
 typedef struct test_result {
-	struct timeval user;
-	struct timeval sys;
-	struct timeval real;
-	char *result_info;
+	struct timeval user[sizeof(trials)/sizeof(*trials)];
+	struct timeval sys[sizeof(trials)/sizeof(*trials)];
+	struct timeval real[sizeof(trials)/sizeof(*trials)];
 } test_result;
 
-command command_array[COMMAND_NUMBER];
+typedef enum command_type {
+	FIND = 'f',
+	REMOVE_ADD = 'x',
+	REMOVE_ADD_ALTERNATIVELY = 'y',
+} command_type;
+
+typedef void command_function_static(unsigned int arg);
+typedef void command_function_dynamic(array_dynamic ad, unsigned int arg);
+
+void find_static(unsigned int arg) {
+	find_most_matching_block_static(arg);
+}
+
+void remove_add_static(unsigned int arg) {
+	unsigned int index;
+	for (index = 0; index < arg; ++index) {
+		pop_block_static(index);
+	}
+	for (index = 0; index < arg; ++index) {
+		append_block_static(index);
+	}
+}
+
+void remove_add_alternatively_static(unsigned int arg) {
+	unsigned int index;
+	for (index = 0; index < arg; ++index) {
+		pop_block_static(index);
+		append_block_static(index);
+	}
+}
+
+void find_dynamic(array_dynamic *ad, unsigned int arg) {
+	find_most_matching_block_dynamic(ad, arg);
+}
+
+void remove_add_dynamic(array_dynamic *ad, unsigned int arg) {
+	unsigned int index;
+	for (index = 0; index < arg; ++index) {
+		pop_block_dynamic(ad, arg);
+	}
+	for (index = 0; index < arg; ++index) {
+		append_block_dynamic(ad, arg);
+	}
+}
+
+void remove_add_dynamic_alternatively_dynamic(array_dynamic *ad, unsigned int arg) {
+	unsigned int index;
+	for (index = 0; index < arg; ++index) {
+		pop_block_dynamic(ad, arg);
+		append_block_dynamic(ad, arg);
+	}
+}
+
+command command_array[MAX_COMMAND_NUMBER];
 unsigned int command_iter;
 
 unsigned int array_size;
@@ -76,7 +126,10 @@ void parse_args(int argc, char *argv[]) {
 
 			case 'y':
 				if (command_iter < MAX_COMMAND_NUMBER) {
-					command new_command = { .type = flag, .arg = (unsigned int) atoi(optarg) };
+					command new_command = {
+						.type = flag,
+						.arg = (unsigned int) atoi(optarg)
+					};
 					command_array[command_iter] = new_command;
 					++command_iter;
 				}
@@ -89,12 +142,77 @@ void parse_args(int argc, char *argv[]) {
 }
 
 test_result perform_test() {
+	test_result tr;
+
+	struct timeval real_time_start, real_time_end;
+	struct rusage previous_usage, present_usage;
+	unsigned int test_index;
+	for (test_index = 0; test_index < sizeof(trials) / sizeof(*trials); ++test_index) {
+		unsigned int command_no, trial_no;
+		for (command_no = 0; command_no < MAX_COMMAND_NUMBER; ++command_no) {
+			getrusage(RUSAGE_SELF, &previous_usage);
+			gettimeofday(&real_time_start, NULL);
+
+			if (method == DYNAMIC) {
+				command_function_dynamic function;
+				switch (command_array[command_no].type) {
+					case 'f':
+						function = find_dynamic;
+						break;
+
+					case 'x':
+						function = remove_add_dynamic;
+						break;
+
+					case 'y':
+						function = remove_add_alternatively_dynamic;
+						break;
+				}
+				for (trial_no = 0; trial_no < trials[test_index]; ++trial_no) {
+					function(command_array[command_no].arg);
+				}
+			} else if (method == STATIC) {
+				command_function_static function;
+				switch(command_array[command_no].type) {
+					case 'f':
+						function = find_static;
+						break;
+
+					case 'x':
+						function = remove_add_static;
+						break;
+
+					case 'y':
+						function = remove_add_alternatively_static;
+						break;
+				}
+				for (trial_no = 0; trial_no < trials[test_index]; ++trial_no) {
+					function(command_array[command_no].arg);
+				}
+			}
+
+			getrusage(RUSAGE_SELF, &present_usage);
+			gettimeofday(&real_time_end, NULL);
+
+			tr.user[test_index] = {
+				.tv_sec = present_usage.ru_utime.tv_sec - previous_usage.ru_utime.tv_sec,
+				.tv_usec = present_usage.ru_utime.tv_usec - previous_usage.ru_utime.tv_usec
+			};
+			tr.sys[test_index] = {
+				.tv_sec = present_usage.ru_stime.tv_sec - previous_usage.ru_stime.tv_sec,
+				.tv_usec = present_usage.ru_stime.tv_usec - previous_usage.ru_stime.tv_usec
+			};
+			tr.real[test_index] = {
+				.tv_sec = real_time_end.tv_sec - real_time_start.tv_sec,
+				.tv_usec = real_time_end.tv_usec - real_time_start.tv_usec
+			};
+		}
+	}
+
+	return tr;
 }
 
-void append_result(char *result_info) {
-}
-
-int save_result(char *result_info) {
+int save_result(test_result result) {
 }
 
 int main(int argc, char *argv[]) {
