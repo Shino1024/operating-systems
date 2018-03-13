@@ -18,6 +18,12 @@
 	#define RESULT_FILENAME "raport2.txt"
 #endif // RESULT_FILENAME
 
+typedef enum command_type {
+	FIND = 'f',
+	REMOVE_ADD = 'x',
+	REMOVE_ADD_ALTERNATIVELY = 'y',
+} command_type;
+
 typedef struct command {
 	command_type type;
 	unsigned int arg;
@@ -35,12 +41,6 @@ typedef struct test_result {
 	struct timeval sys[sizeof(trials)/sizeof(*trials)];
 	struct timeval real[sizeof(trials)/sizeof(*trials)];
 } test_result;
-
-typedef enum command_type {
-	FIND = 'f',
-	REMOVE_ADD = 'x',
-	REMOVE_ADD_ALTERNATIVELY = 'y',
-} command_type;
 
 typedef void command_function_static(unsigned int arg);
 typedef void command_function_dynamic(array_dynamic ad, unsigned int arg);
@@ -81,7 +81,7 @@ void remove_add_dynamic(array_dynamic *ad, unsigned int arg) {
 	}
 }
 
-void remove_add_dynamic_alternatively_dynamic(array_dynamic *ad, unsigned int arg) {
+void remove_add_alternatively_dynamic(array_dynamic *ad, unsigned int arg) {
 	unsigned int index;
 	for (index = 0; index < arg; ++index) {
 		pop_block_dynamic(ad, arg);
@@ -126,11 +126,10 @@ void parse_args(int argc, char *argv[]) {
 
 			case 'y':
 				if (command_iter < MAX_COMMAND_NUMBER) {
-					command new_command = {
+					command_array[command_iter] = {
 						.type = flag,
 						.arg = (unsigned int) atoi(optarg)
 					};
-					command_array[command_iter] = new_command;
 					++command_iter;
 				}
 				break;
@@ -141,8 +140,8 @@ void parse_args(int argc, char *argv[]) {
 	}
 }
 
-test_result perform_test() {
-	test_result tr;
+test_result * perform_test() {
+	test_result *tr = calloc(command_iter + 1, sizeof(test_result));
 
 	struct timeval real_time_start, real_time_end;
 	struct rusage previous_usage, present_usage;
@@ -194,15 +193,15 @@ test_result perform_test() {
 			getrusage(RUSAGE_SELF, &present_usage);
 			gettimeofday(&real_time_end, NULL);
 
-			tr.user[test_index] = {
+			tr[command_no].user[test_index] = {
 				.tv_sec = present_usage.ru_utime.tv_sec - previous_usage.ru_utime.tv_sec,
 				.tv_usec = present_usage.ru_utime.tv_usec - previous_usage.ru_utime.tv_usec
 			};
-			tr.sys[test_index] = {
+			tr[command_no].sys[test_index] = {
 				.tv_sec = present_usage.ru_stime.tv_sec - previous_usage.ru_stime.tv_sec,
 				.tv_usec = present_usage.ru_stime.tv_usec - previous_usage.ru_stime.tv_usec
 			};
-			tr.real[test_index] = {
+			tr[command_no].real[test_index] = {
 				.tv_sec = real_time_end.tv_sec - real_time_start.tv_sec,
 				.tv_usec = real_time_end.tv_usec - real_time_start.tv_usec
 			};
@@ -212,7 +211,8 @@ test_result perform_test() {
 	return tr;
 }
 
-int save_result(test_result result) {
+int save_result(test_result *result) {
+	return 0;
 }
 
 int main(int argc, char *argv[]) {
