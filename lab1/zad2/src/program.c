@@ -7,8 +7,9 @@
 
 #include "hdr/typedefs.h"
 
-#include "hdr/array_dynamic.h"
-#include "hdr/array_static.h"
+#include "imp/util.c"
+#include "imp/array_dynamic.c"
+#include "imp/array_static.c"
 
 #ifndef MAX_COMMAND_NUMBER
 	#define MAX_COMMAND_NUMBER 3
@@ -30,7 +31,7 @@ typedef enum alloc_method {
 	DYNAMIC,
 } alloc_method;
 
-unsigned int trials[] = { 1E1, 1E2, 1E3, 1E4, 1E5 };
+unsigned int trials[] = { 1E1, 1E2, 1E3, 1E4, 1E5, 1E6 };
 
 typedef struct test_result {
 	struct timeval user[sizeof(trials)/sizeof(*trials)];
@@ -144,7 +145,7 @@ void parse_args(int argc, char *argv[]) {
 }
 
 test_result * perform_test() {
-	test_result *tr = calloc(command_iter + 2, sizeof(test_result));
+	test_result *tr = calloc(command_iter + 1, sizeof(test_result));
 
 	struct timeval real_time_start, real_time_end;
 	struct rusage previous_usage, present_usage;
@@ -163,7 +164,7 @@ test_result * perform_test() {
 				test_ads[trial_no] = make_array_dynamic(array_size, block_size);
 				unsigned int block_no;
 				for (block_no = 0; block_no < block_size; ++block_no) {
-					append_block_gen_dynamic(test_ads[trial_no], block_no); //////
+					append_block_gen_dynamic(test_ads[trial_no], block_no);
 				}
 			}
 
@@ -190,8 +191,6 @@ test_result * perform_test() {
 				free_array_dynamic(&(test_ads[trial_no]));
 			}
 		} else if (method == STATIC) {
-			make_array_static(array_size, block_size);
-
 			struct timeval user_tv = { 0, 0 };
 			tr[0].user[test_index] = user_tv;
 			struct timeval sys_tv = { 0, 0 };
@@ -203,9 +202,10 @@ test_result * perform_test() {
 
 	// Handling provided actions
 	array_dynamic *ad = make_array_dynamic(array_size, block_size);
+	make_static_array(array_size, block_size);
 	unsigned int block_index;
 	for (block_index = 0; block_index < array_size; ++block_index) {
-		append_block_dynamic(ad, block_index);
+		append_block_gen_dynamic(ad, block_index);
 	}
 	for (test_index = 0; test_index < sizeof(trials) / sizeof(*trials); ++test_index) {
 		unsigned int command_no, trial_no;
@@ -276,10 +276,10 @@ test_result * perform_test() {
 }
 
 int print_test_result(test_result *result) {
-	printf("Test results for the following parameters:"
-			"\n\t%s array,"
-			"\n\tarray size of %d,"
-			"\n\tblock size of %d",
+	printf("\nTest results for the following parameters:"
+			"\n%s array,"
+			"\narray size of %d,"
+			"\nblock size of %d",
 			method == DYNAMIC ? "DYNAMIC" : "STATIC",
 			array_size,
 			block_size);
@@ -288,9 +288,9 @@ int print_test_result(test_result *result) {
 	
 	printf("\n\n");
 	printf("\n\tArray creation:");
-	printf("\n\t%12s|%12s|%12s|%12s", "repeats", "real", "user", "sys");
+	printf("\n\t%12s|%12s|%12s|%12s", "repeats ", "real ", "user ", "sys ");
 	for (trial_no = 0; trial_no < sizeof(trials) / sizeof(*trials); ++trial_no) {
-		printf("\n\t%12d|%3ld.%6ld|%3ld.%6ld|%3ld.%6ld",
+		printf("\n\t%-12d|%2ld.%-09ld|%2ld.%-09ld|%2ld.%-09ld",
 					trials[trial_no],
 					result[0].real[trial_no].tv_sec,
 					result[0].real[trial_no].tv_usec,
@@ -301,34 +301,34 @@ int print_test_result(test_result *result) {
 	}
 
 	printf("\n\n");
-	for (command_no = 1; command_no <= command_iter + 1; ++command_no) {
+	for (command_no = 0; command_no < command_iter; ++command_no) {
 		switch (command_array[command_no].type) {
 			case FIND:
-				printf("\n\tcommand: FIND");
+				printf("\n\n\n\tCommand: FIND");
 				break;
 
 			case REMOVE_ADD:
-				printf("\n\tcommand: REMOVE_ADD");
+				printf("\n\n\n\tCommand: REMOVE_ADD");
 				break;
 
 			case REMOVE_ADD_ALTERNATELY:
-				printf("\n\tcommand: REMOVE_ADD_ALTERNATELY");
+				printf("\n\n\n\tCommand: REMOVE_ADD_ALTERNATELY");
 				break;
 
 			default:
 				break;
 		}
 
-		printf("\n\t%12s|%12s|%12s|%12s", "repeats", "real", "user", "sys");
+		printf("\n\t%12s|%12s|%12s|%12s", "repeats ", "real ", "user ", "sys ");
 		for (trial_no = 0; trial_no < sizeof(trials) / sizeof(*trials); ++trial_no) {
-			printf("\n\t%12d|%3ld.%6ld|%3ld.%6ld|%3ld.%6ld",
+			printf("\n\t%-12d|%2ld.%-09ld|%2ld.%-09ld|%2ld.%-09ld",
 					trials[trial_no],
-					result[command_no].real[trial_no].tv_sec,
-					result[command_no].real[trial_no].tv_usec,
-					result[command_no].user[trial_no].tv_sec,
-					result[command_no].user[trial_no].tv_usec,
-					result[command_no].sys[trial_no].tv_sec,
-					result[command_no].sys[trial_no].tv_usec);
+					result[command_no + 1].real[trial_no].tv_sec,
+					result[command_no + 1].real[trial_no].tv_usec,
+					result[command_no + 1].user[trial_no].tv_sec,
+					result[command_no + 1].user[trial_no].tv_usec,
+					result[command_no + 1].sys[trial_no].tv_sec,
+					result[command_no + 1].sys[trial_no].tv_usec);
 		}	
 	}
 
