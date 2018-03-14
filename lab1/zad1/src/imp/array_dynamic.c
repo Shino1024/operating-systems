@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <limits.h>
+#include <string.h>
 
 #include "../hdr/array_dynamic.h"
 #include "../hdr/util.h"
@@ -18,11 +19,16 @@ array_dynamic * make_array_dynamic(unsigned int array_size, unsigned int block_s
 }
 
 int free_array_dynamic(array_dynamic **ad) {
-	if (*ad == NULL) {
+	if (ad == NULL) {
 		return -1;
 	}
-	if ((*ad)->array == NULL) {
+
+	if (*ad == NULL) {
 		return -2;
+	}
+
+	if ((*ad)->array == NULL) {
+		return -3;
 	}
 
 	unsigned int i = 0;
@@ -32,12 +38,41 @@ int free_array_dynamic(array_dynamic **ad) {
 		}
 	}
 	free((*ad)->array);
+	free(*ad);
 	*ad = NULL;
 
 	return 0;
 }
 
-int append_block_dynamic(array_dynamic *ad, unsigned int index) {
+int append_block_dynamic(array_dynamic *ad, unsigned int index, const char *data) {
+	if (ad == NULL) {
+		return -1;
+	}
+
+	if (ad->array == NULL) {
+		return -2;
+	}
+
+	if (ad->array_size <= index) {
+		return -3;
+	}
+
+	if (ad->array[index] != NULL) {
+		return -4;
+	}
+
+	ad->array[index] = (block) calloc(ad->block_size, sizeof(chunk));
+	unsigned int data_length = strlen(data);
+	if (data_length >= ad->block_size) {
+		memcpy(ad->array[index], data, ad->block_size - 1);
+	} else {
+		memcpy(ad->array[index], data, data_length - 1);
+	}
+
+	return 0;
+}
+
+int append_block_gen_dynamic(array_dynamic *ad, unsigned int index) {
 	if (ad == NULL) {
 		return -1;
 	}
