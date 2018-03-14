@@ -30,7 +30,7 @@ typedef enum alloc_method {
 	DYNAMIC,
 } alloc_method;
 
-unsigned int trials = { 1E1, 1E2, 1E3, 1E4, 1E5 };
+unsigned int trials[] = { 1E1, 1E2, 1E3, 1E4, 1E5 };
 
 typedef struct test_result {
 	struct timeval user[sizeof(trials)/sizeof(*trials)];
@@ -38,8 +38,8 @@ typedef struct test_result {
 	struct timeval real[sizeof(trials)/sizeof(*trials)];
 } test_result;
 
-typedef void command_function_static(unsigned int arg);
-typedef void command_function_dynamic(array_dynamic *ad, unsigned int arg);
+typedef void (*command_function_static)(unsigned int arg);
+typedef void (*command_function_dynamic)(array_dynamic *ad, unsigned int arg);
 
 void find_static(unsigned int arg) {
 	find_most_matching_block_static(arg);
@@ -90,7 +90,7 @@ unsigned int command_iter;
 
 unsigned int array_size;
 unsigned int block_size;
-alloc_method method = DYNAMIC;
+alloc_method method;
 
 void usage(char *program_name) {
 	printf("Usage: %s"
@@ -119,7 +119,7 @@ void parse_args(int argc, char *argv[]) {
 				break;
 
 			case 's':
-				alloc_method = 's';
+				method = STATIC;
 				break;
 
 			case 'f':
@@ -128,10 +128,11 @@ void parse_args(int argc, char *argv[]) {
 
 			case 'y':
 				if (command_iter < MAX_COMMAND_NUMBER) {
-					command_array[command_iter] = {
-						.type = flag,
-						.arg = (unsigned int) atoi(optarg)
+					command new_command = {
+						flag,
+						(unsigned int) atoi(optarg)
 					};
+					command_array[command_iter] = new_command;
 					++command_iter;
 				}
 				break;
@@ -153,7 +154,7 @@ test_result * perform_test() {
 	for (test_index = 0; test_index < sizeof(trials) / sizeof(*trials); ++test_index) {
 		unsigned int trial_no;
 		if (method == DYNAMIC) {
-			array_dynamic test_ads[trials[test_index]];
+			array_dynamic *test_ads[trials[test_index]];
 
 			getrusage(RUSAGE_SELF, &previous_usage);
 			gettimeofday(&real_time_start, NULL);
@@ -169,18 +170,21 @@ test_result * perform_test() {
 			getrusage(RUSAGE_SELF, &present_usage);
 			gettimeofday(&real_time_end, NULL);
 
-			tr[0].user[test_index] = {
+			struct timeval user_tv = {
 				(time_t) (present_usage.ru_utime.tv_sec - previous_usage.ru_utime.tv_sec),
 				(time_t) (present_usage.ru_utime.tv_usec - previous_usage.ru_utime.tv_usec)
 			};
-			tr[0].sys[test_index] = {
+			tr[0].user[test_index] = user_tv;
+			struct timeval sys_tv = {
 				(time_t) (present_usage.ru_stime.tv_sec - previous_usage.ru_stime.tv_sec),
 				(time_t) (present_usage.ru_stime.tv_usec - previous_usage.ru_stime.tv_usec)
 			};
-			tr[0].real[test_index] = {
+			tr[0].sys[test_index] = sys_tv;
+			struct timeval real_tv = {
 				(time_t) (real_time_end.tv_sec - real_time_start.tv_sec),
 				(time_t) (real_time_end.tv_usec - real_time_start.tv_usec)
 			};
+			tr[0].real[test_index] = real_tv;
 
 			for (trial_no = 0; trial_no < trials[test_index]; ++trial_no) {
 				free_array_dynamic(&(test_ads[trial_no]));
@@ -188,9 +192,12 @@ test_result * perform_test() {
 		} else if (method == STATIC) {
 			make_array_static(array_size, block_size);
 
-			tr[0].user[test_index] = { 0, 0 };
-			tr[0].sys[test_index] = { 0, 0 };
-			tr[0].real[test_index] = { 0, 0 };
+			struct timeval user_tv = { 0, 0 };
+			tr[0].user[test_index] = user_tv;
+			struct timeval sys_tv = { 0, 0 };
+			tr[0].sys[test_index] = sys_tv;
+			struct timeval real_tv = { 0, 0 };
+			tr[0].real[test_index] = real_tv;
 		}
 	}
 
@@ -247,18 +254,21 @@ test_result * perform_test() {
 			getrusage(RUSAGE_SELF, &present_usage);
 			gettimeofday(&real_time_end, NULL);
 
-			tr[command_no + 1].user[test_index] = {
+			struct timeval user_tv = {
 				(time_t) (present_usage.ru_utime.tv_sec - previous_usage.ru_utime.tv_sec),
 				(time_t) (present_usage.ru_utime.tv_usec - previous_usage.ru_utime.tv_usec)
 			};
-			tr[command_no + 1].sys[test_index] = {
+			tr[command_no + 1].user[test_index] = user_tv;
+			struct timeval sys_tv = {
 				(time_t) (present_usage.ru_stime.tv_sec - previous_usage.ru_stime.tv_sec),
 				(time_t) (present_usage.ru_stime.tv_usec - previous_usage.ru_stime.tv_usec)
 			};
-			tr[command_no + 1].real[test_index] = {
+			tr[command_no + 1].sys[test_index] = sys_tv;
+			struct timeval real_tv = {
 				(time_t) (real_time_end.tv_sec - real_time_start.tv_sec),
 				(time_t) (real_time_end.tv_usec - real_time_start.tv_usec)
 			};
+			tr[command_no + 1].real[test_index] = real_tv;
 		}
 	}
 
@@ -278,16 +288,16 @@ int print_test_result(test_result *result) {
 	
 	printf("\n\n");
 	printf("\n\tArray creation:");
-	printf("\n\t%12s|%12s|%12s|%12s", "repeats", "real", "user", "sys")
+	printf("\n\t%12s|%12s|%12s|%12s", "repeats", "real", "user", "sys");
 	for (trial_no = 0; trial_no < sizeof(trials) / sizeof(*trials); ++trial_no) {
 		printf("\n\t%12d|%3ld.%6ld|%3ld.%6ld|%3ld.%6ld",
 					trials[trial_no],
-					result[0].real.tv_sec,
-					result[0].real.tv_usec,
-					result[0].user.tv_sec,
-					result[0].user.tv_usec,
-					result[0].sys.tv_sec,
-					result[0].sys.tv_usec);
+					result[0].real[trial_no].tv_sec,
+					result[0].real[trial_no].tv_usec,
+					result[0].user[trial_no].tv_sec,
+					result[0].user[trial_no].tv_usec,
+					result[0].sys[trial_no].tv_sec,
+					result[0].sys[trial_no].tv_usec);
 	}
 
 	printf("\n\n");
@@ -313,12 +323,12 @@ int print_test_result(test_result *result) {
 		for (trial_no = 0; trial_no < sizeof(trials) / sizeof(*trials); ++trial_no) {
 			printf("\n\t%12d|%3ld.%6ld|%3ld.%6ld|%3ld.%6ld",
 					trials[trial_no],
-					result[command_no].real.tv_sec,
-					result[command_no].real.tv_usec,
-					result[command_no].user.tv_sec,
-					result[command_no].user.tv_usec,
-					result[command_no].sys.tv_sec,
-					result[command_no].sys.tv_usec);
+					result[command_no].real[trial_no].tv_sec,
+					result[command_no].real[trial_no].tv_usec,
+					result[command_no].user[trial_no].tv_sec,
+					result[command_no].user[trial_no].tv_usec,
+					result[command_no].sys[trial_no].tv_sec,
+					result[command_no].sys[trial_no].tv_usec);
 		}	
 	}
 
@@ -332,6 +342,7 @@ int main(int argc, char *argv[]) {
 		usage(argv[0]);
 		return 0;
 	}
+	method = DYNAMIC;
 	parse_args(argc, argv);
 
 	test_result *runtime = perform_test();
