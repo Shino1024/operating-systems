@@ -28,5 +28,8 @@ program_static: static
 program_dynamic: dynamic
 	${CC} program.c -DDYNAMIC_VERSION -ldl ${CFLAGS} -o program_dynamic
 
+test:
+	./test_run.sh
+
 clean:
 	rm *.o *.so *.a program_static program_dynamic program_shared
