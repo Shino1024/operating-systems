@@ -1,41 +1,22 @@
 CC=gcc
+CFLAGS=-Wall
+
 AR=ar
 ARFLAGS=rcs
-STATIC_LIB=libblock_array.a
-SHARED_LIB=libblock_array.so
-IMP_DIR=src/imp
-SRC=$(shell find "${IMP_DIR}/" -type f -name "*.c" -exec basename {} ';')
-OBJ_DIR=obj
-OBJ_FPIC_DIR=objfpic
-OBJS=$(addprefix ${OBJ_DIR}/,${SRC:.c=.o})
-OBJS_FPIC=$(addprefix ${OBJ_FPIC_DIR}/,${SRC:.c=.o})
-LIB_DIR=lib
 
-CFLAGS=-Wall
-EXTRA_CFLAGS_0=-fPIC
-EXTRA_CFLAGS_1=-shared
+.PHONY: static shared clean
 
-${OBJ_DIR}/%.o: ${IMP_DIR}/%.c
-	${CC} -c $< ${CFLAGS} -o ${OBJ_DIR}/$@
+make all: static shared test_shared
 
-${OBJS}: ${OBJ_DIR}/%.o: ${IMP_DIR}/%.c
-	${CC} -c $< ${CFLAGS} -o $@
+static:
+	${CC} -c condensed_lib.c ${CFLAGS} -o condensed_lib.o
+	${AR} ${ARFLAGS} condensed_lib.a condensed_lib.o
 
-static: ${OBJS}
-	${AR} ${ARFLAGS} ${LIB_DIR}/${STATIC_LIB} $^
+shared:
+	${CC} -fPIC -shared condensed_lib.c -o libcondensed_lib.so
 
-${OBJ_FPIC_DIR}/%.o: ${IMP_DIR}/%.c
-	${CC} -c $< ${EXTRA_CFLAGS_0} ${CFLAGS} -o ${OBJ_FPIC_DIR}/$@
-
-${OBJS_FPIC}: ${OBJ_FPIC_DIR}/%.o: ${IMP_DIR}/%.c
-	${CC} -c $< ${EXTRA_CFLAGS_0} ${CFLAGS} -o $@
-
-shared: ${OBJS_FPIC}
-	${CC} -shared -Wl,-soname,${SHARED_LIB}.1.0.0 -o ${LIB_DIR}/${SHARED_LIB}.1.0.0 $^ -lc
-
-.PHONY: all clean
-
-all: static shared
+test_shared: shared
+	${CC} test.c -L. -Wl,-rpath=. -lcondensed_lib -o test
 
 clean:
-	@rm lib/* obj/* objfpic/*
+	rm *.o *.so *.a

@@ -67,8 +67,6 @@ int append_block_gen_static(unsigned int index) {
 	gen_data(array_static[index], block_size_static);
 	alloc_info[index] = 1;
 
-	printf("Appended at %d\n", index);
-
 	return 0;
 }
 
@@ -89,8 +87,7 @@ int pop_block_static(unsigned int index) {
 
 int find_most_matching_block_static(unsigned int index) {
 	if (index >= array_size_static) {
-		printf("wrong: %d/%d\n\n", index, array_size_static);
-		return -1;
+			return -1;
 	}
 
 	if (alloc_info[index] == 0) {
@@ -99,11 +96,9 @@ int find_most_matching_block_static(unsigned int index) {
 
 	long chosen_sum = 0;
 	unsigned int i, j;
-	//printf("before: %d\n", block_size_static);
 	for (j = 0; j < block_size_static; ++j) {
 		chosen_sum += (long) array_static[index][j];
 	}
-	//printf("chosen sum: %ld\n", chosen_sum);
 
 	long difference;
 	long min_difference = LONG_MAX;
