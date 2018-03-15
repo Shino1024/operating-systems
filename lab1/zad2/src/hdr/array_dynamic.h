@@ -7,7 +7,9 @@ array_dynamic * make_array_dynamic(unsigned int array_size, unsigned int block_s
 
 int free_array_dynamic(array_dynamic **ad);
 
-int append_block_dynamic(array_dynamic *ad, unsigned int index);
+int append_block_dynamic(array_dynamic *ad, unsigned int index, const char *data);
+
+int append_block_gen_dynamic(array_dynamic *ad, unsigned int index);
 
 int pop_block_dynamic(array_dynamic *ad, unsigned int index);
 
