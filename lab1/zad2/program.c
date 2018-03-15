@@ -101,15 +101,6 @@ void usage(char *program_name) {
 
 int convert_arg(char *arg) {
 	int ret;
-	/*
-	char *test_char;
-	for (test_char = arg; test_char != NULL; ++test_char) {
-		printf("%c\n", *test_char);
-		if (!(*test_char == ' ' || (*test_char >= '0' && *test_char <= '9'))) {
-			return -1;
-		}
-	}
-	*/
 	if (sscanf(arg, "%d", &ret) == EOF) {
 		return -1;
 	} else {
@@ -193,10 +184,6 @@ int parse_args(int argc, char *argv[]) {
 
 	return 0;
 }
-
-// POSITIVE NUMBER
-// TIME DIFFERENCE
-// OFFSET MACRO
 
 struct timeval time_difference(struct timeval present, struct timeval previous) {
 	struct timeval tv_ret;
@@ -311,6 +298,9 @@ test_result * perform_test() {
 					case REMOVE_ADD_ALTERNATELY:
 						function = &remove_add_alternately_dynamic;
 						break;
+
+					default:
+						return NULL;
 				}
 				for (trial_no = 0; trial_no < trials[test_index]; ++trial_no) {
 					function(ad, command_array[command_no].arg);
@@ -329,6 +319,9 @@ test_result * perform_test() {
 					case REMOVE_ADD_ALTERNATELY:
 						function = &remove_add_alternately_static;
 						break;
+
+					default:
+						return NULL;
 				}
 				for (trial_no = 0; trial_no < trials[test_index]; ++trial_no) {
 					function(command_array[command_no].arg);
@@ -353,7 +346,7 @@ test_result * perform_test() {
 	return tr;
 }
 
-int print_test_result(test_result *result) {
+int print_test_result_and_free(test_result *result) {
 	printf("\nTest results for the following parameters:"
 			"\n%s array,"
 			"\narray size of %d,"
@@ -410,17 +403,20 @@ int print_test_result(test_result *result) {
 
 	printf("\n\nThe test has been finished successfully.\n\n");
 
+	free(result);
+
 	return 0;
 }
 
 int main(int argc, char *argv[]) {
+	int error_code;
 	if (argc < 2) {
 		usage(argv[0]);
 		return 0;
 	}
 	method = DYNAMIC;
 	
-	int error_code = parse_args(argc, argv);
+	error_code = parse_args(argc, argv);
 	if (error_code == -1) {
 		printf("Make sure the arguments to the provided options are positive numbers. Exiting.\n");
 		return 1;
@@ -436,10 +432,11 @@ int main(int argc, char *argv[]) {
 	}
 
 	test_result *runtime = perform_test();
+	if (runtime == NULL) {
+		return 4;
+	}
 
-	print_test_result(runtime);
-
-	free(runtime);
+	print_test_result_and_free(runtime);
 
 	return 0;
 }

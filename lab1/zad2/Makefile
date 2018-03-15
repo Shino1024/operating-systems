@@ -23,4 +23,4 @@ program_static: static
 	${CC} program.o libcondensed_lib.a -o program_static
 
 clean:
-	rm *.o *.so *.a
+	rm *.o *.so *.a program_static program_shared
