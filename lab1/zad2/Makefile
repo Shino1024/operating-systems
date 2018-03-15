@@ -6,7 +6,7 @@ ARFLAGS=rcs
 
 .PHONY: static shared clean
 
-make all: static shared program_shared program_static
+make all: program_shared program_static
 
 static:
 	${CC} -c condensed_lib.c ${CFLAGS} -o condensed_lib.o

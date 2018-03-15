@@ -182,7 +182,7 @@ void usage(char *program_name) {
 
 int convert_arg(char *arg) {
 	int ret;
-	if (sscanf(arg, "%d", &ret) == EOF) {
+	if (sscanf(arg, "%d", &ret) == 0) {
 		return -1;
 	} else {
 		return ret;
@@ -361,7 +361,7 @@ test_result * perform_test() {
 	for (test_index = 0; test_index < sizeof(trials) / sizeof(*trials); ++test_index) {
 		unsigned int command_no, trial_no;
 		printf("Command test no %d, trials: %d\n", test_index, trials[test_index]);
-		for (command_no = 0; command_no < MAX_COMMAND_NUMBER; ++command_no) {
+		for (command_no = 0; command_no < command_iter; ++command_no) {
 			getrusage(RUSAGE_SELF, &previous_usage);
 			gettimeofday(&real_time_start, NULL);
 
