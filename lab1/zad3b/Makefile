@@ -1,6 +1,8 @@
+ifneq (${MAKECMDGOALS},test)
 ifneq (${MAKECMDGOALS},clean)
 ifndef OPT
 $(error Please, set the OPT flag like make OPT=1 program_static)
+endif
 endif
 endif
 
@@ -33,6 +35,9 @@ program_static: static
 
 program_dynamic: dynamic
 	${CC} program.c -DDYNAMIC_VERSION -ldl ${CFLAGS} -O${OPT} -o program_dynamic
+
+test:
+	./test_run.sh
 
 clean:
 	rm *.o *.so *.a program_static program_dynamic program_shared
