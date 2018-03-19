@@ -136,7 +136,7 @@ int get_nth_record_sys(int fd, unsigned int i, const record record_buffer, unsig
 		return -4;
 	}
 
-	return 9;
+	return 0;
 }
 
 int set_nth_record_sys(int fd, unsigned int i, const record record_buffer, unsigned int record_size) {
