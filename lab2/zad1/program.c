@@ -366,7 +366,6 @@ int sort_records_lib(const char *filename, unsigned int records, unsigned int re
 			fclose(out_file);
 			return -4;
 		}
-		printf("i: %d, r1: %s\n\n", i, r1);
 		for (j = 0; j < i; ++j) {
 			error_code = get_nth_record_lib(out_file, j, r0, record_len);
 			if (error_code < 0) {
@@ -375,11 +374,9 @@ int sort_records_lib(const char *filename, unsigned int records, unsigned int re
 				fclose(out_file);
 				return -4;
 			}
-			printf("i: %d, j: %d, r0: %s\n\n", i, j, r0);
 			if (r0[0] > r1[0]) {
 				unsigned int k;
 				for (k = i; k > j; --k) {
-					printf("k = %d\n\n", k);
 					error_code = get_nth_record_lib(out_file, k - 1, r0, record_len);
 					error_code = get_nth_record_lib(out_file, k, r1, record_len);
 					error_code = set_nth_record_lib(out_file, k - 1, r1, record_len);
@@ -418,7 +415,7 @@ int sort_records_sys(const char *filename, unsigned int records, unsigned int re
 		return -2;
 	}
 
-	int out_fd = open(filename, O_RDONLY);
+	int out_fd = open(filename, O_RDWR);
 	if (out_fd < 0) {
 		free(r0);
 		free(r1);
@@ -444,7 +441,7 @@ int sort_records_sys(const char *filename, unsigned int records, unsigned int re
 			}
 			if (r0[0] > r1[0]) {
 				unsigned int k;
-				for (k = i - 1; k >= j; --k) {
+				for (k = i; k > j; --k) {
 					error_code = get_nth_record_sys(out_fd, k - 1, r0, record_len);
 					error_code = get_nth_record_sys(out_fd, k, r1, record_len);
 					error_code = set_nth_record_sys(out_fd, k - 1, r1, record_len);
