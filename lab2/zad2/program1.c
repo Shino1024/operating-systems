@@ -80,11 +80,11 @@ int print_file_info(const char *absolute_filepath, struct stat file_info) {
 		return -1;
 	}
 
-	printf(" %-80s | %10ldB | %s | %02d/%02d/%02d\n",
+	printf(" %-80s | %10ldB | %s | %02d/%02d/%04d\n",
 			absolute_filepath,
 			file_info.st_size,
 			string_permissions,
-			mod_tm->tm_mday, mod_tm->tm_mon + 1, mod_tm->tm_year);
+			mod_tm->tm_mday, mod_tm->tm_mon + 1, mod_tm->tm_year + 1900);
 	
 	free(string_permissions);
 
@@ -97,11 +97,16 @@ int meets_criteria(const search_criteria *criteria, time_t access_time) {
 	}
 
 	time_t access_time_copy = access_time;
-	struct tm access_time_struct;
-	memcpy(&access_time_struct, localtime(&access_time_copy), sizeof(access_time_struct));
+	struct tm access_time_struct = { 0 };
+	localtime_r(&access_time_copy, &access_time_struct);
+
 	time_t mod_date_copy = criteria->mod_date;
-	struct tm given_time_struct;
-	memcpy(&given_time_struct, localtime(&mod_date_copy), sizeof(given_time_struct));
+	//printf("XXX:::: %ld\n\n", mod_date_copy);
+
+	struct tm given_time_struct = { 0 };
+	localtime_r(&mod_date_copy, &given_time_struct);
+
+	//printf("\nATS: %d/%d/%d/ || GTS: %d/%d/%d\n", access_time_struct.tm_mday, access_time_struct.tm_mon, access_time_struct.tm_year, given_time_struct.tm_mday, given_time_struct.tm_mon, given_time_struct.tm_year);
 
 	switch (criteria->comp) {
 		case EARLIER:
@@ -177,7 +182,7 @@ int recursive_ls(const search_criteria *criteria, const filepath absolute_given)
 	}
 
 	printf("\nList of %s:\n", absolute_path);
-	printf(" %-80s | %11s | %9s | %8s\n",
+	printf(" %-80s | %11s | %9s | %10s\n",
 			"ABSOLUTE NAME",
 			"SIZE",
 			"PERM",
@@ -254,13 +259,17 @@ int check_filepath(const filepath folder) {
 }
 
 int check_comparator(const char *comp) {
+	if (strlen(comp) > 1) {
+		return -1;
+	}
+
 	if (*comp == EARLIER
 			|| *comp == EQUAL
 			|| *comp == LATER) {
 		return 0;
 	}
 
-	return -1;
+	return -2;
 }
 
 int check_date(const char *date) {
@@ -269,10 +278,17 @@ int check_date(const char *date) {
 	}
 
 	unsigned int day, month, year;
-	error_code = sscanf(date, "%2d/%2d/%4d", &day, &month, &year);
+	error_code = sscanf(date, "%02d/%02d/%04d", &day, &month, &year);
 	if (error_code == 0) {
 		printf("The provided time is not in correct format (DD/MM/YYYY).\n");
 		return -1;
+	}
+	
+	if (day < 1 || day > 31
+			|| month < 1 || month > 12
+			|| year < 1900 || year > 2099) {
+		printf("Make sure the date is in correct boundaries.\n");
+	return -2;
 	}
 
 	return 0;
@@ -281,7 +297,7 @@ int check_date(const char *date) {
 int usage(const char *program_name) {
 	printf("Usage: %s"
 			"\n\tfolder_path (relative or absolute)"
-			"\n\tcomparator (<|=|>)"
+			"\n\tcomparator ('<'|'='|'>')"
 			"\n\tdate (format: DD/MM/YYYY)"
 			"\n\n", program_name);
 
@@ -290,15 +306,13 @@ int usage(const char *program_name) {
 
 time_t parse_date(const char *date) {
 	unsigned int day, month, year;
-	sscanf(date, "%2d/%2d/%4d", &day, &month, &year);
+	sscanf(date, "%02d/%02d/%04d", &day, &month, &year);
 
-	struct tm tm_date;
+	struct tm tm_date = { 0 };
 	tm_date.tm_mday = day;
-	tm_date.tm_mon = month;
-	tm_date.tm_year = year;
-	tm_date.tm_hour = 0;
-	tm_date.tm_min = 0;
-	tm_date.tm_sec = 0;
+	//printf("DAY: %d\n\n\n", day);
+	tm_date.tm_mon = month - 1;
+	tm_date.tm_year = year - 1900;
 
 	time_t ret = mktime(&tm_date);
 
