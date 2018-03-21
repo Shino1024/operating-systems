@@ -101,12 +101,8 @@ int meets_criteria(const search_criteria *criteria, time_t modify_time) {
 	localtime_r(&modify_time_copy, &modify_time_struct);
 
 	time_t mod_date_copy = criteria->mod_date;
-	//printf("XXX:::: %ld\n\n", mod_date_copy);
-
 	struct tm given_time_struct = { 0 };
 	localtime_r(&mod_date_copy, &given_time_struct);
-
-	//printf("\nATS: %d/%d/%d/ || GTS: %d/%d/%d\n", access_time_struct.tm_mday, access_time_struct.tm_mon, access_time_struct.tm_year, given_time_struct.tm_mday, given_time_struct.tm_mon, given_time_struct.tm_year);
 
 	switch (criteria->comp) {
 		case EARLIER:
@@ -153,26 +149,20 @@ int meets_criteria(const search_criteria *criteria, time_t modify_time) {
 }
 
 int recursive_ls(const search_criteria *criteria, const filepath absolute_given) {
-	//printf("REC\n\n\n");
 	struct dirent *entry;
 	DIR *dir;
 
 	char absolute_path[PATH_MAX + 3] = { 0 };
 	if (absolute_given == NULL) {
 		if (realpath(criteria->path, absolute_path) == NULL) {
-			//printf("O NO\n");
 			return -1;
 		}
 		unsigned int eraser;
 		for (eraser = strlen(absolute_path); eraser < PATH_MAX + 3; ++eraser) {
 			absolute_path[eraser] = '\0';
 		}
-//printf("REALPATH // ::: %s -- %s\n\n\n", absolute_path, absolute_path + strlen(absolute_path) + 3);
-
 	} else {
 		strcpy(absolute_path, absolute_given);
-//printf("REALPATH \\\\ ::: %s\n\n\n", absolute_path);
-
 	}
 
 	unsigned int relative_begin_index = strlen(absolute_path);
@@ -181,12 +171,9 @@ int recursive_ls(const search_criteria *criteria, const filepath absolute_given)
 	}
 
 	if (absolute_path[relative_begin_index] != '/') {
-		//printf("POOOO\n");
 		absolute_path[relative_begin_index] = '/';
 		++relative_begin_index;
 	}
-//printf("REALPATH ::: %s\n\n\n", absolute_path);
-
 
 	dir = opendir(absolute_path);
 	if (dir == NULL) {
@@ -323,7 +310,6 @@ time_t parse_date(const char *date) {
 
 	struct tm tm_date = { 0 };
 	tm_date.tm_mday = day;
-	//printf("DAY: %d\n\n\n", day);
 	tm_date.tm_mon = month - 1;
 	tm_date.tm_year = year - 1900;
 
