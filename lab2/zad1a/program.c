@@ -787,7 +787,7 @@ int perform_operation(command *com) {
 			}
 
 		default:
-			break;
+			return -5;
 	}
 
 	return 0;
