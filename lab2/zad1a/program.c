@@ -7,7 +7,6 @@
 #include <sys/stat.h>
 #include <time.h>
 #include <sys/time.h>
-#include <sys/resource.h>
 
 #define NUM_OF_COMMANDS 3
 
@@ -61,11 +60,11 @@ int gen_record(record dest, unsigned int size) {
 
 	struct timeval rand_tv;
 	gettimeofday(&rand_tv, NULL);
-	srand(rand_tv.tv_usec + (rand_tv.tv_sec % 1000) * 1E6);
+	srand48(rand_tv.tv_usec + (rand_tv.tv_sec % 1000) * 1E6);
 	
 	unsigned int i;
 	for (i = 0; i < size; ++i) {
-		dest[i] = (unsigned char) (rand() % 94 + 33);
+		dest[i] = (unsigned char) (lrand48() % 94 + 33);
 	}
 
 	return 0;
@@ -738,30 +737,6 @@ mode parse_mode(char *m) {
 	return UNDEFINED_MODE;
 }
 
-struct timeval time_difference(struct timeval present, struct timeval previous) {
-	struct timeval tv_ret;
-	if (present.tv_sec < previous.tv_sec
-			|| (present.tv_sec == previous.tv_sec && present.tv_usec < previous.tv_usec)) {
-		tv_ret.tv_sec = 0;
-		tv_ret.tv_usec = 0;
-	} else {
-		if (present.tv_sec == previous.tv_sec) {
-			tv_ret.tv_sec = 0;
-			tv_ret.tv_usec = (size_t) (present.tv_usec - previous.tv_usec);
-		} else {
-			if (present.tv_usec >= previous.tv_usec) {
-				tv_ret.tv_sec = (size_t) (present.tv_sec - previous.tv_sec);
-				tv_ret.tv_usec = (size_t) (present.tv_usec - previous.tv_usec);
-			} else {
-				tv_ret.tv_sec = (size_t) (present.tv_sec - previous.tv_sec - 1);
-				tv_ret.tv_usec = (size_t) (1E6 - (previous.tv_usec - present.tv_usec));
-			}
-		}
-	}
-
-	return tv_ret;
-}
-
 int perform_operation(command *com) {
 	if (com == NULL) {
 		return -1;
@@ -771,9 +746,6 @@ int perform_operation(command *com) {
 		return -2;
 	}
 
-	struct rusage usage_previous;
-	struct rusage usage_present;
-	getrusage(RUSAGE_SELF, &usage_previous);
 	switch (com->op) {
 		case GENERATE:
 			{
@@ -818,26 +790,6 @@ int perform_operation(command *com) {
 			break;
 	}
 
-	getrusage(RUSAGE_SELF, &usage_present);
-	struct timeval delta_time_user = time_difference(usage_present.ru_utime, usage_previous.ru_utime);
-	struct timeval delta_time_system = time_difference(usage_present.ru_stime, usage_previous.ru_stime);
-
-	printf("Test results for the following parameters:"
-			"\n\n\tCommand: %s"
-			"\n\tNumber of records: %s"
-			"\n\tRecord size: %s"
-			"\n\tMode: %s"
-			"\n\n\tUser time: %ld.%06ld"
-			"\n\tSystem time: %ld.%06ld",
-			op_names[com->op],
-			com->op == COPY ? com->args[2] : com->args[1],
-			com->op == COPY ? com->args[3] : com->args[2],
-			com->op == COPY ? com->args[4] : (com->op == SORT ? com->args[3] : ""),
-			delta_time_user.tv_sec,
-			delta_time_user.tv_usec,
-			delta_time_system.tv_sec,
-			delta_time_system.tv_usec);
-
 	return 0;
 }
 
@@ -849,13 +801,11 @@ int main(int argc, char *argv[]) {
 
 	error_code = perform_operation(com);
 	if (error_code < 0) {
-		printf("Errors occured. Exiting.\n\n");
+		printf("Errors occured. Exiting.\n");
 		return 2;
 	}
 
 	free_command(com);
-
-	printf("\nThe test has been finished successfully.\n\n");
 
 	return 0;
 }

@@ -13,7 +13,7 @@ all:
 
 test:
 	for RECORD_LEN in 4 512 4096 8192 ; do \
-		for RECORD_NUM in 500 1000 ; do \
+		for RECORD_NUM in 2000 4000 ; do \
 			${OUTPUT} generate ${PREFIX}_$${RECORD_NUM}_$${RECORD_LEN} $${RECORD_NUM} $${RECORD_LEN} ; \
 			for MODE in lib sys ; do \
 				${OUTPUT} sort ${PREFIX}_$${RECORD_NUM}_$${RECORD_LEN} $${RECORD_NUM} $${RECORD_LEN} $${MODE} ; \
