@@ -73,14 +73,14 @@ char * stringify_permissions(unsigned int permissions) {
 }
 
 int print_file_info(const char *absolute_filepath, struct stat file_info) {
-	time_t access_time_copy = file_info.st_atime;
-	struct tm *mod_tm = localtime(&access_time_copy);
+	time_t modify_time_copy = file_info.st_mtime;
+	struct tm *mod_tm = localtime(&modify_time_copy);
 	char *string_permissions = stringify_permissions(file_info.st_mode);
 	if (string_permissions == NULL) {
 		return -1;
 	}
 
-	printf(" %-80s | %10ldB | %s | %02d/%02d/%04d\n",
+	printf(" %-80s | %10ld B | %s | %02d/%02d/%04d\n",
 			absolute_filepath,
 			file_info.st_size,
 			string_permissions,
@@ -91,14 +91,14 @@ int print_file_info(const char *absolute_filepath, struct stat file_info) {
 	return 0;
 }
 
-int meets_criteria(const search_criteria *criteria, time_t access_time) {
+int meets_criteria(const search_criteria *criteria, time_t modify_time) {
 	if (criteria == NULL) {
 		return -1;
 	}
 
-	time_t access_time_copy = access_time;
-	struct tm access_time_struct = { 0 };
-	localtime_r(&access_time_copy, &access_time_struct);
+	time_t modify_time_copy = modify_time;
+	struct tm modify_time_struct = { 0 };
+	localtime_r(&modify_time_copy, &modify_time_struct);
 
 	time_t mod_date_copy = criteria->mod_date;
 	//printf("XXX:::: %ld\n\n", mod_date_copy);
@@ -110,12 +110,12 @@ int meets_criteria(const search_criteria *criteria, time_t access_time) {
 
 	switch (criteria->comp) {
 		case EARLIER:
-			if (given_time_struct.tm_year > access_time_struct.tm_year
-					|| (given_time_struct.tm_year == access_time_struct.tm_year
-						&& given_time_struct.tm_mon > access_time_struct.tm_mon)
-					|| (given_time_struct.tm_year == access_time_struct.tm_year
-						&& given_time_struct.tm_mon == access_time_struct.tm_mon
-						&& given_time_struct.tm_mday > access_time_struct.tm_mday)) {
+			if (given_time_struct.tm_year > modify_time_struct.tm_year
+					|| (given_time_struct.tm_year == modify_time_struct.tm_year
+						&& given_time_struct.tm_mon > modify_time_struct.tm_mon)
+					|| (given_time_struct.tm_year == modify_time_struct.tm_year
+						&& given_time_struct.tm_mon == modify_time_struct.tm_mon
+						&& given_time_struct.tm_mday > modify_time_struct.tm_mday)) {
 				return 0;
 			} else {
 				return 1;
@@ -123,9 +123,9 @@ int meets_criteria(const search_criteria *criteria, time_t access_time) {
 			break;
 
 		case EQUAL:
-			if (given_time_struct.tm_year == access_time_struct.tm_year
-					&& given_time_struct.tm_mon == access_time_struct.tm_mon
-					&& given_time_struct.tm_mday == access_time_struct.tm_mday) {
+			if (given_time_struct.tm_year == modify_time_struct.tm_year
+					&& given_time_struct.tm_mon == modify_time_struct.tm_mon
+					&& given_time_struct.tm_mday == modify_time_struct.tm_mday) {
 				return 0;
 			} else {
 				return 1;
@@ -133,12 +133,12 @@ int meets_criteria(const search_criteria *criteria, time_t access_time) {
 			break;
 
 		case LATER:
-			if (given_time_struct.tm_year < access_time_struct.tm_year
-					|| (given_time_struct.tm_year == access_time_struct.tm_year
-						&& given_time_struct.tm_mon < access_time_struct.tm_mon)
-					|| (given_time_struct.tm_year == access_time_struct.tm_year
-						&& given_time_struct.tm_mon == access_time_struct.tm_mon
-						&& given_time_struct.tm_mday < access_time_struct.tm_mday)) {
+			if (given_time_struct.tm_year < modify_time_struct.tm_year
+					|| (given_time_struct.tm_year == modify_time_struct.tm_year
+						&& given_time_struct.tm_mon < modify_time_struct.tm_mon)
+					|| (given_time_struct.tm_year == modify_time_struct.tm_year
+						&& given_time_struct.tm_mon == modify_time_struct.tm_mon
+						&& given_time_struct.tm_mday < modify_time_struct.tm_mday)) {
 				return 0;
 			} else {
 				return 1;
@@ -153,16 +153,26 @@ int meets_criteria(const search_criteria *criteria, time_t access_time) {
 }
 
 int recursive_ls(const search_criteria *criteria, const filepath absolute_given) {
+	//printf("REC\n\n\n");
 	struct dirent *entry;
 	DIR *dir;
 
 	char absolute_path[PATH_MAX + 3] = { 0 };
 	if (absolute_given == NULL) {
 		if (realpath(criteria->path, absolute_path) == NULL) {
+			//printf("O NO\n");
 			return -1;
 		}
+		unsigned int eraser;
+		for (eraser = strlen(absolute_path); eraser < PATH_MAX + 3; ++eraser) {
+			absolute_path[eraser] = '\0';
+		}
+//printf("REALPATH // ::: %s -- %s\n\n\n", absolute_path, absolute_path + strlen(absolute_path) + 3);
+
 	} else {
 		strcpy(absolute_path, absolute_given);
+//printf("REALPATH \\\\ ::: %s\n\n\n", absolute_path);
+
 	}
 
 	unsigned int relative_begin_index = strlen(absolute_path);
@@ -171,9 +181,12 @@ int recursive_ls(const search_criteria *criteria, const filepath absolute_given)
 	}
 
 	if (absolute_path[relative_begin_index] != '/') {
+		//printf("POOOO\n");
 		absolute_path[relative_begin_index] = '/';
 		++relative_begin_index;
 	}
+//printf("REALPATH ::: %s\n\n\n", absolute_path);
+
 
 	dir = opendir(absolute_path);
 	if (dir == NULL) {
@@ -182,11 +195,11 @@ int recursive_ls(const search_criteria *criteria, const filepath absolute_given)
 	}
 
 	printf("\nList of %s:\n", absolute_path);
-	printf(" %-80s | %11s | %9s | %10s\n",
+	printf(" %-80s | %12s | %9s | %10s\n",
 			"ABSOLUTE NAME",
 			"SIZE",
 			"PERM",
-			"ACCESS");
+			"MODIFIED");
 	char current_filepath_buffer[PATH_MAX + 3] = { 0 };
 	strcpy(current_filepath_buffer, absolute_path);
 	struct stat file_info;
@@ -199,7 +212,7 @@ int recursive_ls(const search_criteria *criteria, const filepath absolute_given)
 				printf("Couldn't read file %s, omitting...\n", current_filepath_buffer);
 			} else {
 				if (S_ISREG(file_info.st_mode)
-						&& meets_criteria(criteria, file_info.st_atime) == 0) {
+						&& meets_criteria(criteria, file_info.st_mtime) == 0) {
 					print_file_info(current_filepath_buffer, file_info);
 				}
 			}
