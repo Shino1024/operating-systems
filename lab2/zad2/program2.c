@@ -189,73 +189,7 @@ int nftw_ls() {
 			"MODIFIED");
 
 	nftw(absolute_path, stat_function, 1000, FTW_PHYS);
-/*
-	dir = opendir(absolute_path);
-	if (dir == NULL) {
-		printf("Couldn't enter %s, omitting...\n\n", absolute_path);
-		return -3;
-	}
 
-	printf("\nList of %s:\n", absolute_path);
-	printf(" %-80s | %12s | %9s | %10s\n",
-			"ABSOLUTE NAME",
-			"SIZE",
-			"PERM",
-			"MODIFIED");
-	char current_filepath_buffer[PATH_MAX + 3] = { 0 };
-	strcpy(current_filepath_buffer, absolute_path);
-	struct stat file_info;
-	do {
-		entry = readdir(dir);
-		if (entry != NULL) {
-			strcat(current_filepath_buffer + relative_begin_index, entry->d_name);
-			error_code = lstat(current_filepath_buffer, &file_info);
-			if (error_code < 0) {
-				printf("Couldn't read file %s, omitting...\n", current_filepath_buffer);
-			} else {
-				if (S_ISREG(file_info.st_mode)
-						&& meets_criteria(criteria, file_info.st_mtime) == 0) {
-					print_file_info(current_filepath_buffer, file_info);
-				}
-			}
-
-			unsigned int eraser = relative_begin_index;
-			while (current_filepath_buffer[eraser] != '\0') {
-				current_filepath_buffer[eraser] = '\0';
-				++eraser;
-			}
-		}
-	} while (entry != NULL);
-
-	rewinddir(dir);
-	do {
-		entry = readdir(dir);
-		if (entry != NULL) {
-			if (strcmp(entry->d_name, ".") == 0
-					|| strcmp(entry->d_name, "..") == 0) {
-				continue;
-			}
-
-			strcat(current_filepath_buffer + relative_begin_index, entry->d_name);
-			error_code = lstat(current_filepath_buffer, &file_info);
-			if (error_code < 0) {
-				printf("Couldn't read file %s, omitting...\n", current_filepath_buffer);
-			} else {
-				if (S_ISDIR(file_info.st_mode)) {
-					recursive_ls(criteria, current_filepath_buffer);
-				}
-			}
-
-			unsigned int eraser = relative_begin_index;
-			while (current_filepath_buffer[eraser] != '\0') {
-				current_filepath_buffer[eraser] = '\0';
-				++eraser;
-			}
-		}
-	} while (entry != NULL);
-
-	closedir(dir);
-*/
 	return 0;
 }
 

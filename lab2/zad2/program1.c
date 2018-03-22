@@ -326,30 +326,35 @@ search_criteria * parse_args(int argc, char *argv[]) {
 
 	if (argc != 4) {
 		usage(argv[0]);
+		free(ret);
 		return NULL;
 	}
 
 	error_code = check_filepath(argv[1]);
 	if (error_code < 0) {
 		printf("Provide a correct folder path.\n");
+		free(ret);
 		return NULL;
 	}
 
 	error_code = check_comparator(argv[2]);
 	if (error_code < 0) {
 		printf("Provide a correct comaprison operator ('<', '=' or '>').\n");
+		free(ret);
 		return NULL;
 	}
 
 	error_code = check_date(argv[3]);
 	if (error_code < 0) {
 		printf("Provide a correct date (format: DD/MM/YYYY)\n");
+		free(ret);
 		return NULL;
 	}
 
 	unsigned int filepath_len = strlen(argv[1]);
 	ret->path = (filepath) calloc(filepath_len, sizeof(*(ret->path)));
 	if (ret->path == NULL) {
+		free(ret);
 		return NULL;
 	}
 	strcpy(ret->path, argv[1]);
