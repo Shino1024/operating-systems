@@ -188,7 +188,7 @@ int nftw_ls() {
 			"PERM",
 			"MODIFIED");
 
-	nftw(absolute_path, stat_function, 1000, FTW_PHYS);
+	nftw(absolute_path, stat_function, 1000, FTW_DEPTH | FTW_PHYS);
 
 	return 0;
 }

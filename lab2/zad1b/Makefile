@@ -16,8 +16,9 @@ test:
 		for RECORD_NUM in 2000 4000 ; do \
 			${OUTPUT} generate ${PREFIX}_$${RECORD_NUM}_$${RECORD_LEN} $${RECORD_NUM} $${RECORD_LEN} ; \
 			for MODE in lib sys ; do \
-				${OUTPUT} sort ${PREFIX}_$${RECORD_NUM}_$${RECORD_LEN} $${RECORD_NUM} $${RECORD_LEN} $${MODE} ; \
-				${OUTPUT} copy ${PREFIX}_$${RECORD_NUM}_$${RECORD_LEN} ${PREFIX}_$${RECORD_NUM}_$${RECORD_LEN}_copy $${RECORD_NUM} $${RECORD_LEN} $${MODE} ; \
+				cp ${PREFIX}_$${RECORD_NUM}_$${RECORD_LEN} ${PREFIX}_$${RECORD_NUM}_$${RECORD_LEN}_$${MODE} ; \
+				${OUTPUT} sort ${PREFIX}_$${RECORD_NUM}_$${RECORD_LEN}_$${MODE} $${RECORD_NUM} $${RECORD_LEN} $${MODE} ; \
+				${OUTPUT} copy ${PREFIX}_$${RECORD_NUM}_$${RECORD_LEN}_$${MODE} ${PREFIX}_$${RECORD_NUM}_$${RECORD_LEN}_$${MODE}_copy $${RECORD_NUM} $${RECORD_LEN} $${MODE} ; \
 			done ; \
 		done ; \
 	done
