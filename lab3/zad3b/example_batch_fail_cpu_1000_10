@@ -1,0 +1,9 @@
+
+ls -al
+
+  ls  
+		./testing_program_cpu generate output 5000 100 	 
+
+ 	./testing_program_cpu sort output 5000 100 lib   
+
+	
