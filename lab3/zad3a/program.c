@@ -30,7 +30,9 @@ typedef struct limited_batch {
 
 int print_usage(char *program_name) {
 	printf("Usage: %s\n"
-			"\n\tsource"
+			"\n\tbatch file"
+			"\n\tpositive number of maximal virtual memort in megabytes for subprocess"
+			"\n\tpositive number of maximal CPU time in seconds for subprocess"
 			"\n", program_name);
 
 	return 0;
