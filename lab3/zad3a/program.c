@@ -51,7 +51,7 @@ limited_batch * parse_args(int argc, char *argv[]) {
 	parsee = strtoul(argv[1], NULL, 10);
 	printf("%ld\n", parsee);
 	if (parsee == 0
-			/*|| (parse >> 6) >= (ULONG_MAX >> 2)*/) {
+			|| parsee >= (ULONG_MAX << 11)) {
 		printf("Provide valid positive unsigned long integers.\n");
 		free(ret->batch_name);
 		free(ret);
@@ -142,7 +142,7 @@ command_bundle * parse_command(char *command_buffer, int command_length) {
 }
 
 int blame_command(const command_bundle *command, int exit_code) {
-	printf("Command \"");
+	printf("\nCommand \"");
 
 	unsigned int i;
 	for (i = 0; i < command->argument_count - 1; ++i) {
@@ -179,9 +179,11 @@ struct timeval time_difference(struct timeval present, struct timeval previous) 
 }
 
 int report_time_stat(char *command_name, time_stat ts) {
-	printf("Command \"%s\" took"
-			"\n\t%ld.%06lds of user and"
-			"\n\t%ld.%06lds of system time.\n",
+	printf("\n================================="
+			"\n| Command \"%s\" took"
+			"\n|\t%ld.%06lds of user and"
+			"\n|\t%ld.%06lds of system time.\n"
+			"=================================\n\n",
 			command_name,
 			ts.user.tv_sec, ts.user.tv_usec,
 			ts.sys.tv_sec, ts.sys.tv_usec);
@@ -309,13 +311,13 @@ int free_batch_parameters(limited_batch *batch_parameters) {
 int main(int argc, char *argv[]) {
 	limited_batch *batch_parameters = parse_args(argc, argv);
 	if (batch_parameters == NULL) {
-		printf("Parsing parameters failed. Exiting...\n");
+		printf("\n !! Parsing parameters failed. Exiting...\n");
 		return 1;
 	}
 
 	error_code = process_batch(batch_parameters);
 	if (error_code < 0) {
-		printf("Couldn't execute the batch file. Exiting...\n");
+		printf("\n !! Couldn't execute the batch file. Exiting...\n");
 		return 2;
 	}
 
