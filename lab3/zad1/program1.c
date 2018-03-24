@@ -229,9 +229,9 @@ int recursive_ls(const search_criteria *criteria, const filepath absolute_given)
 			} else {
 				if (S_ISDIR(file_info.st_mode)) {
 					error_code = fork();
-					if (error_code > 0) {
+					if (error_code == 0) {
 						exit(recursive_ls(criteria, current_filepath_buffer));
-					} else if (error_code == 0) {
+					} else if (error_code > 0) {
 						wait(NULL);
 					} else {
 						printf("Error occured with fork. Exiting...\n");
