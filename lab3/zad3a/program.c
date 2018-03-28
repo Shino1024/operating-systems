@@ -64,7 +64,7 @@ limited_batch * parse_args(int argc, char *argv[]) {
 	unsigned long parsee;
 	parsee = strtoul(argv[3], NULL, 10);
 	if (parsee == 0
-			|| parsee >= (ULONG_MAX << 11)) {
+			|| parsee >= (ULONG_MAX >> 53)) {
 		printf("Provide valid positive unsigned long integers.\n");
 		free(ret->batch_name);
 		free(ret);
