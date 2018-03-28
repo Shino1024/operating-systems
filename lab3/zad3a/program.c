@@ -31,8 +31,8 @@ typedef struct limited_batch {
 int print_usage(char *program_name) {
 	printf("Usage: %s\n"
 			"\n\tbatch file"
-			"\n\tpositive number of maximal virtual memort in megabytes for subprocess"
 			"\n\tpositive number of maximal CPU time in seconds for subprocess"
+			"\n\tpositive number of maximal virtual memory in megabytes for subprocess"	
 			"\n", program_name);
 
 	return 0;
@@ -49,17 +49,7 @@ limited_batch * parse_args(int argc, char *argv[]) {
 		return NULL;
 	}
 
-	unsigned long parsee;
-	parsee = strtoul(argv[1], NULL, 10);
-	if (parsee == 0
-			|| parsee >= (ULONG_MAX << 11)) {
-		printf("Provide valid positive unsigned long integers.\n");
-		free(ret->batch_name);
-		free(ret);
-		return NULL;
-	}
-	ret->limit_as.rlim_cur = parsee << 20;
-	ret->limit_as.rlim_max = ret->limit_as.rlim_cur;
+	ret->batch_name = strdup(argv[1]);
 
 	ret->limit_cpu.rlim_cur = strtoul(argv[2], NULL, 10);
 	if (ret->limit_cpu.rlim_cur == 0
@@ -71,7 +61,17 @@ limited_batch * parse_args(int argc, char *argv[]) {
 	}
 	ret->limit_cpu.rlim_max = ret->limit_cpu.rlim_cur;
 
-	ret->batch_name = strdup(argv[3]);
+	unsigned long parsee;
+	parsee = strtoul(argv[3], NULL, 10);
+	if (parsee == 0
+			|| parsee >= (ULONG_MAX << 11)) {
+		printf("Provide valid positive unsigned long integers.\n");
+		free(ret->batch_name);
+		free(ret);
+		return NULL;
+	}
+	ret->limit_as.rlim_cur = parsee << 20;
+	ret->limit_as.rlim_max = ret->limit_as.rlim_cur;
 
 	return ret;
 }
@@ -109,12 +109,13 @@ command_bundle * parse_command(char *command_buffer, int command_length) {
 	}
 
 	unsigned int argument_counter = 0;
-	char *command_buffer_counter = strdup(command_buffer);
-	char *token = strtok(command_buffer_counter, " \t");
+	char *command_buffer_counter_copy = strdup(command_buffer);
+	char *token = strtok(command_buffer_counter_copy, " \t");
 	while (token != NULL) {
 		++argument_counter;
 		token = strtok(NULL, " \t");
 	}
+	free(command_buffer_counter_copy);
 	if (argument_counter == 0) {
 		command_ret->program_name = NULL;
 		return command_ret;
@@ -127,7 +128,8 @@ command_bundle * parse_command(char *command_buffer, int command_length) {
 		return NULL;
 	}
 
-	token = strtok(command_buffer, " \t");
+	char *command_buffer_copy = strdup(command_buffer);
+	token = strtok(command_buffer_copy, " \t");
 	command_ret->program_name = strdup(token);
 	command_ret->arguments[command_ret->argument_count - 1] = NULL;
 
@@ -136,6 +138,8 @@ command_bundle * parse_command(char *command_buffer, int command_length) {
 		command_ret->arguments[i] = strdup(token);
 		token = strtok(NULL, " \t");
 	}
+
+	free(command_buffer_copy);
 
 	return command_ret;
 }
@@ -201,6 +205,7 @@ time_stat * execute_command(const command_bundle *command, const limited_batch *
 	if (child_pid == 0) {
 		setrlimit(RLIMIT_AS, &(batch_parameters->limit_as));
 		setrlimit(RLIMIT_CPU, &(batch_parameters->limit_cpu));
+
 		execvp(command->program_name, command->arguments);
 	} else if (child_pid > 0) {
 		int status;
@@ -271,11 +276,14 @@ int process_batch(const limited_batch *batch_parameters) {
 
 		command_buffer[command_length - 1] = '\0';
 		command = parse_command(command_buffer, command_length);
+		if (command == NULL) {
+			return -4;
+		}
 
 		if (command->program_name != NULL) {
 			time_stat *ts = execute_command(command, batch_parameters);
 			if (ts == NULL) {
-				return -4;
+				return -5;
 			}
 			report_time_stat(command->program_name, *ts);
 			
