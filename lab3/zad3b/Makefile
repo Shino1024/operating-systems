@@ -6,7 +6,7 @@ TEST_AS=testing_program_as_50mb.c
 TEST_CPU=testing_program_cpu.c
 
 OUTPUT=./program
-OUTPUT_AS=./testing_program_as_50bmb
+OUTPUT_AS=./testing_program_as_50mb
 OUTPUT_CPU=./testing_program_cpu
 
 BATCH_AS=example_batch_fail_as_50mb_10_10
