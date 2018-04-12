@@ -97,6 +97,11 @@ void parent1_2_handle(int sig) {
 	++signals_received_by_parent;
 }
 
+void parent1_3_handle(int sig) {
+	printf("Caught SIGMIN from child.\n");
+	++signals_received_by_parent;
+}
+
 void sigint_handle(int sig) {
     printf("Caught SIGINT, sending SIGKILL to child...\n");
     kill(child_pid, SIGKILL);
@@ -160,11 +165,7 @@ int configure_parent_signals() {
     struct sigaction sigrtmin_action;
     memset(&sigrtmin_action, 0, sizeof(sigrtmin_action));
     sigemptyset(&sigrtmin_action.sa_mask);
-		if (program_params.type == 1) {
-    	sigrtmin_action.sa_handler = parent1_1_handle;
-		} else if (program_params.type == 2) {
-			sigrtmin_action.sa_handler = parent1_2_handle;
-		}
+    sigrtmin_action.sa_handler = parent1_3_handle;
     if (sigaction(SIGRTMIN, &sigrtmin_action, NULL) < 0) {
         perror("sigaction");
         return -1;
