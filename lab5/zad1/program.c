@@ -67,7 +67,7 @@ command_bundle * parse_command(char *command_buffer, int command_length) {
 		return command_ret;
 	}
 
-	command_ret->argument_count = argument_counter + 1;
+	command_ret->argument_count = argument_counter;
 	command_ret->arguments = (char **) calloc(command_ret->argument_count, sizeof(char *));
 	if (command_ret->arguments == NULL) {
 		free_command_bundle(command_ret);
@@ -76,7 +76,6 @@ command_bundle * parse_command(char *command_buffer, int command_length) {
 
 	token = strtok(command_buffer, " \t");
 	command_ret->program_name = strdup(token);
-	command_ret->arguments[command_ret->argument_count - 1] = NULL;
 
 	unsigned int i;
 	for (i = 0; token != NULL; ++i) {
@@ -106,6 +105,7 @@ int execute_connected_commands(const command_bundle *command_line) {
 	unsigned int *first_words;
 	unsigned int *last_words;
 	int (*pipes)[2];
+	
 	if (strcmp(command_line->arguments[0], "|") == 0) {
 		printf("Found a pipe at the beginning of line.\n");
 		return -1;
@@ -147,11 +147,17 @@ int execute_connected_commands(const command_bundle *command_line) {
 	first_words[0] = 0;
 	last_words[pipe_count] = command_line->argument_count - 1;
 	for (i = 0; i < command_line->argument_count - 1; ++i) {
+		//printf("Dbg1: %s\n", command_line->arguments[i]);
 		if (strcmp(command_line->arguments[i], "|") == 0) {
 			last_words[words_counter] = i - 1;
 			++words_counter;
 			first_words[words_counter] = i + 1;
 		}
+	}
+
+	int x;
+	for (x = 0; x < pipe_count + 1; ++x) {
+		//printf("First: %d, last: %d\n\n", first_words[x], last_words[x]);
 	}
 
 	pid_t child_pid;
@@ -177,53 +183,53 @@ int execute_connected_commands(const command_bundle *command_line) {
 			unsigned int argument;
 			for (argument = 0; argument < argument_count; ++argument) {
 				arguments[argument] = strdup(command_line->arguments[first_words[command] + argument]);
-				printf("DBG: %d / %d / %s\n", command, argument, arguments[argument]);
+				//printf("Dbg2: %d / %d / %s\n", command, argument, arguments[argument]);
 			}
 			arguments[argument_count] = NULL;
 
 			if (command == 0) {
 				close(pipes[0][0]);
+				for (i = 1; i < pipe_count; ++i) {
+					close(pipes[i][0]);
+					close(pipes[i][1]);
+				}
 				dup2(pipes[0][1], STDOUT_FILENO);
 			} else if (command == pipe_count) {
+				for (i = 0; i < pipe_count - 1; ++i) {
+					close(pipes[i][0]);
+					close(pipes[i][1]);
+				}
 				close(pipes[pipe_count - 1][1]);
 				dup2(pipes[pipe_count - 1][0], STDIN_FILENO);
 			} else {
+				for (i = 0; i < command - 1; ++i) {
+					close(pipes[i][0]);
+					close(pipes[i][1]);
+				}
+
+				close(pipes[command - 1][1]);
+				close(pipes[command][0]);
 				dup2(pipes[command][1], STDOUT_FILENO);
-				dup2(pipes[command][0], STDIN_FILENO);
+				dup2(pipes[command - 1][0], STDIN_FILENO);
+
+				for (i = command + 1; i < pipe_count; ++i) {
+					close(pipes[i][0]);
+					close(pipes[i][1]);
+				}
 			}
 
 			execvp(arguments[0], arguments);
+			perror("execvp");
 			exit(1);
 		}
-
-		int status;
-		while (wait(&status) > 0);
 	}
-	/*
-	int child_pid = fork();
-	if (child_pid == 0) {
-		execvp(command->program_name, command->arguments);
-	} else if (child_pid > 0) {
-		int status;
-		error_code = waitpid(child_pid, &status, 0);
-		if (error_code < 0) {
-			return -1;
-		}
 
-		if (WIFEXITED(status) != 0) {
-			int exit_status = WEXITSTATUS(status);
-			if (exit_status != 0) {
-				blame_command(command, exit_status);
-				return -3;
-			} else {
-				return 0;
-			}
-		}
-	} else {
-		printf("Process fork failed.\n");
-		return -2;
+	for (i = 0; i < pipe_count; ++i) {
+		close(pipes[i][0]);
+		close(pipes[i][1]);
 	}
-	*/
+	
+	while (wait(NULL) > 0);
 
 	return 0;
 }
@@ -265,6 +271,8 @@ int process_batch(const char *source) {
 			error_code = execute_connected_commands(command);
 			if (error_code < 0) {
 				return -3;
+			} else {
+				printf("\n");
 			}
 		}
 
