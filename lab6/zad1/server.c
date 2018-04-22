@@ -180,6 +180,8 @@ int main(int argc, char *argv[]) {
 				case END:
 					finish_mode = 1;
 					snprintf(return_msg.buffer, MAX_BUFFER_SIZE, "%s", "Finishing soon...");
+
+					return_msg.mtype = END;
 					break;
 
 				default:
