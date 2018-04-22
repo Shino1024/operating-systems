@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -94,7 +96,11 @@ int main(int argc, char *argv[]) {
 	char command_buffer[MAX_COMMAND_LINE_SIZE];
 	while (fgets(command_buffer, MAX_COMMAND_LINE_SIZE, input)) {
 		char *command_buffer_copy = strdup(command_buffer);
-		char *command_name = strtok(command_buffer_copy, " \t");
+		char *command_name = strtok(command_buffer_copy, " \t\n");
+		if (command_name == NULL) {
+			free(command_buffer_copy);
+			continue;
+		}
 		char command_matched = 0;
 		for (i = 0; i < sizeof(operations) / sizeof(*operations); ++i) {
 			if (strcmp(command_name, operations[i]) == 0) {
@@ -111,10 +117,22 @@ int main(int argc, char *argv[]) {
 			msg_buf message;
 			message.mtype = MIRROR + i;
 			message.id = id;
-			strcpy(message.buffer, strtok(NULL, "\n"));
+			strcpy(message.buffer, command_buffer);
 			free(command_buffer_copy);
-			printf("Sending to %d\n\n", server_queue_id);
+
 			error_code = msgsnd(server_queue_id, &message, sizeof(message) - sizeof(message.mtype), IPC_NOWAIT);
+			if (error_code < 0) {
+				perror("msgsnd");
+				return 3;
+			}
+
+			msg_buf received_message;
+			error_code = msgrcv(private_queue_id, &received_message, sizeof(received_message) - sizeof(received_message.mtype), KEY_ID, MSG_EXCEPT);
+			if (error_code < 0) {
+				perror("msgrcv");
+				return 3;
+			}
+			printf("Received from server: %s\n\n", received_message.buffer);
 		}
 	}
 

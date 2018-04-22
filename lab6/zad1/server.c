@@ -14,6 +14,8 @@
 
 static int error_code;
 
+static char finish_mode;
+
 struct {
 	int client_queue_id;
 	key_t client_key;
@@ -60,10 +62,14 @@ int main(int argc, char *argv[]) {
 				return 3;
 			}
 		} else {
+			if (client_id_counter >= MAX_CLIENT_NUMBER) {
+				printf("Unfortunately, this server cannot handle any new clients.\n");
+				continue;
+			}
 			int client_queue_id = msgget(received_key_message.key, 0);
 			if (client_queue_id < 0) {
 				perror("msgget");
-				// ???
+				return 3;
 			}
 
 			key_id_msg_buf id;
@@ -81,37 +87,43 @@ int main(int argc, char *argv[]) {
 			++client_id_counter;
 		}
 
-		error_code = msgrcv(server_queue_id, &received_message, sizeof(received_message.buffer), KEY_ID, IPC_NOWAIT | MSG_EXCEPT);
+		error_code = msgrcv(server_queue_id, &received_message, sizeof(received_message) - sizeof(received_message.mtype), KEY_ID, IPC_NOWAIT | MSG_EXCEPT);
 		if (error_code < 0) {
 			if (errno != ENOMSG) {
 				perror("msgrcv");
-				// ???
+				return 3;
+			} else {
+				if (finish_mode) {
+					exit(0);
+				}
 			}
 		} else {
-			printf("[%d] :: %s\n\n", received_message.id, received_message.buffer);
+			printf("[%d] :: %s\n", received_message.id, received_message.buffer);
 			msg_buf return_msg;
-			char buffer_copy[MAX_BUFFER_SIZE];
-			strcpy(buffer_copy, received_message.buffer);
+			char *buffer_copy = strdup(received_message.buffer);
+			strtok(buffer_copy, " \t");
 
 			switch (received_message.mtype) {
 				case MIRROR:
 					{
 						unsigned int iter;
-						size_t string_length = strlen(received_message.buffer);
-						char buffer_copy[string_length];
+						char *begin = strtok(NULL, "\n");
+						size_t string_length = strlen(begin);
+						char mirror[string_length + 1];
 						for (iter = 0; iter < string_length; ++iter) {
-							buffer_copy[string_length - iter] = received_message.buffer[iter];
-
-							return_msg.mtype = MIRROR;
-							strcpy(return_msg.buffer, buffer_copy);
+							mirror[string_length - iter - 1] = begin[iter];
 						}
+						mirror[string_length] = '\0';
+
+						return_msg.mtype = MIRROR;
+						strcpy(return_msg.buffer, mirror);
 					}
 					break;
 
 				case ADD:
 					{
-						char *first_number_string = strtok(buffer_copy, " ");
-						char *second_number_string = strtok(NULL, " ");
+						char *first_number_string = strtok(NULL, " ");
+						char *second_number_string = strtok(NULL, "\n");
 						long first_number = strtol(first_number_string, NULL, 10);
 						long second_number = strtol(second_number_string, NULL, 10);
 						snprintf(return_msg.buffer, MAX_BUFFER_SIZE, "%ld", first_number + second_number);
@@ -122,8 +134,8 @@ int main(int argc, char *argv[]) {
 
 				case SUB:
 					{
-						char *first_number_string = strtok(buffer_copy, " ");
-						char *second_number_string = strtok(NULL, " ");
+						char *first_number_string = strtok(NULL, " ");
+						char *second_number_string = strtok(NULL, "\n");
 						long first_number = strtol(first_number_string, NULL, 10);
 						long second_number = strtol(second_number_string, NULL, 10);
 						snprintf(return_msg.buffer, MAX_BUFFER_SIZE, "%ld", first_number - second_number);
@@ -134,8 +146,8 @@ int main(int argc, char *argv[]) {
 
 				case MUL:
 					{
-						char *first_number_string = strtok(buffer_copy, " ");
-						char *second_number_string = strtok(NULL, " ");
+						char *first_number_string = strtok(NULL, " ");
+						char *second_number_string = strtok(NULL, "\n");
 						long first_number = strtol(first_number_string, NULL, 10);
 						long second_number = strtol(second_number_string, NULL, 10);
 						snprintf(return_msg.buffer, MAX_BUFFER_SIZE, "%ld", first_number * second_number);
@@ -146,8 +158,8 @@ int main(int argc, char *argv[]) {
 
 				case DIV:
 					{
-						char *first_number_string = strtok(buffer_copy, " ");
-						char *second_number_string = strtok(NULL, " ");
+						char *first_number_string = strtok(NULL, " ");
+						char *second_number_string = strtok(NULL, "\n");
 						long first_number = strtol(first_number_string, NULL, 10);
 						long second_number = strtol(second_number_string, NULL, 10);
 						snprintf(return_msg.buffer, MAX_BUFFER_SIZE, "%ld", second_number == 0 ? 0 : first_number / second_number);
@@ -166,14 +178,16 @@ int main(int argc, char *argv[]) {
 					break;
 
 				case END:
+					finish_mode = 1;
+					snprintf(return_msg.buffer, MAX_BUFFER_SIZE, "%s", "Finishing soon...");
 					break;
 
 				default:
 					break;
 			}
 
-			strcpy(return_msg.buffer, buffer_copy);
-			error_code = msgsnd(client_data[received_message.id].client_queue_id, &return_msg, sizeof(return_msg), IPC_NOWAIT);
+			free(buffer_copy);
+			error_code = msgsnd(client_data[received_message.id].client_queue_id, &return_msg, sizeof(return_msg) - sizeof(return_msg.mtype), IPC_NOWAIT);
 		}
 	}
 
