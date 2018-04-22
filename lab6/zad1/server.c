@@ -190,6 +190,10 @@ int main(int argc, char *argv[]) {
 
 			free(buffer_copy);
 			error_code = msgsnd(client_data[received_message.id].client_queue_id, &return_msg, sizeof(return_msg) - sizeof(return_msg.mtype), IPC_NOWAIT);
+			if (error_code < 0) {
+				perror("msgsnd");
+				return 3;
+			}
 		}
 	}
 
