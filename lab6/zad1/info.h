@@ -11,7 +11,7 @@
 #define MAX_COMMAND_LINE_SIZE 1024
 
 typedef enum msg_type {
-	KEY_ID,
+	KEY_ID = 1,
 	MIRROR,
 	ADD,
 	SUB,

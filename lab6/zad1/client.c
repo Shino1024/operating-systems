@@ -5,6 +5,7 @@
 #include <sys/ipc.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <signal.h>
 
 #include "info.h"
 
@@ -20,12 +21,13 @@ static char *operations[] = {
 	"END"
 };
 
-key_t private_token;
+int private_queue_id;
 
 int id;
 
 void remove_queue() {
-	msgctl(private_token, IPC_RMID, NULL);
+	printf("Cleaning up...\n");
+	msgctl(private_queue_id, IPC_RMID, NULL);
 }
 
 int main(int argc, char *argv[]) {
@@ -43,7 +45,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	server_token = ftok(home_env, PROJECT_CHAR);
-	if (server_token < 0) {
+	if (server_token == -1) {
 		perror("ftok");
 		return 2;
 	}
@@ -53,12 +55,12 @@ int main(int argc, char *argv[]) {
 		return 2;
 	}
 
-	private_token = ftok(home_env, getpid());
-	if (private_token < 0) {
+	key_t private_token = ftok(home_env, getpid());
+	if (private_token == -1) {
 		perror("ftok");
 		return 2;
 	}
-	int private_queue_id = msgget(private_token, S_IRWXU | S_IRWXG | IPC_CREAT | IPC_EXCL);
+	private_queue_id = msgget(private_token, S_IRWXU | S_IRWXG | IPC_CREAT | IPC_EXCL);
 	if (private_queue_id < 0) {
 		perror("msgget");
 		return 2;
@@ -70,15 +72,13 @@ int main(int argc, char *argv[]) {
 
 	error_code = msgsnd(server_queue_id, &key_buf, sizeof(key_buf) - sizeof(key_buf.mtype), 0);
 	if (error_code < 0) {
-		remove_queue();
 		perror("msgsnd");
 		return 2;
 	}
 
 	key_id_msg_buf id_buf;
-	error_code = msgrcv(server_queue_id, &id_buf, sizeof(id_buf) - sizeof(id_buf.mtype), KEY_ID, 0);
+	error_code = msgrcv(private_queue_id, &id_buf, sizeof(id_buf) - sizeof(id_buf.mtype), KEY_ID, 0);
 	if (error_code < 0) {
-		remove_queue();
 		perror("msgrcv");
 		return 2;
 	}
@@ -113,7 +113,8 @@ int main(int argc, char *argv[]) {
 			message.id = id;
 			strcpy(message.buffer, strtok(NULL, "\n"));
 			free(command_buffer_copy);
-			error_code = msgsnd(server_queue_id, &message, sizeof(message), IPC_NOWAIT);
+			printf("Sending to %d\n\n", server_queue_id);
+			error_code = msgsnd(server_queue_id, &message, sizeof(message) - sizeof(message.mtype), IPC_NOWAIT);
 		}
 	}
 

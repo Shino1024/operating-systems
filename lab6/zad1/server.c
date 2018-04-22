@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <time.h>
 #include <fcntl.h>
+#include <signal.h>
 
 #include "info.h"
 
@@ -16,7 +17,6 @@ static int error_code;
 struct {
 	int client_queue_id;
 	key_t client_key;
-	//unsigned int client_id;
 } client_data[MAX_CLIENT_NUMBER];
 
 static key_id_msg_buf received_key_message;
@@ -24,7 +24,16 @@ static msg_buf received_message;
 
 static unsigned int client_id_counter;
 
+void clean_up() {
+	printf("Cleaning up...\n");
+	msgctl(server_queue_id, IPC_RMID, NULL);
+}
+
 int main(int argc, char *argv[]) {
+	atexit(clean_up);
+	signal(SIGINT, clean_up);
+	signal(SIGTERM, clean_up);
+
 	home_env = getenv("HOME");
 	if (home_env == NULL) {
 		perror("getenv");
@@ -44,7 +53,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	while (1) {
-		error_code = msgrcv(server_queue_id, &received_key_message, sizeof(received_key_message.key), KEY_ID, IPC_NOWAIT);
+		error_code = msgrcv(server_queue_id, &received_key_message, sizeof(received_key_message) - sizeof(received_key_message.mtype), KEY_ID, IPC_NOWAIT);
 		if (error_code < 0) {
 			if (errno != ENOMSG) {
 				perror("msgrcv");
