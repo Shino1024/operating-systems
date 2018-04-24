@@ -1,0 +1,11 @@
+MIRROR 123abc4d5e6f
+ADD 1 2
+SUB 3 7
+TIME
+
+TIME
+
+DIV 4 0
+DIV 5   6	
+
+END
