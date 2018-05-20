@@ -4,7 +4,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <math.h>
-#include <sys/times.h>
+#include <sys/time.h>
 #include <string.h>
 
 #define MAX_THREADS 32
@@ -49,7 +49,7 @@ int parse_uint(char *source, unsigned int *uint) {
 	return 0;
 }
 
-int parse_filename(char *source, char *filename) {
+int parse_filename(char *source, char **filename) {
 	size_t source_len = strlen(source);
 
 	unsigned int i;
@@ -59,7 +59,7 @@ int parse_filename(char *source, char *filename) {
 		}
 	}
 
-	filename = strdup(source);
+	*filename = strdup(source);
 	if (filename == NULL) {
 		return -2;
 	}
@@ -74,19 +74,19 @@ int parse_arguments(int argc, char *argv[]) {
 		return -1;
 	}
 
-	error_code = parse_filename(argv[2], program_arguments.in_file);
+	error_code = parse_filename(argv[2], &(program_arguments.in_file));
 	if (error_code < 0) {
 		fprintf(stderr, "Make sure that in_file doesn't contain '/' characters.");
 		return -1;
 	}
 
-	error_code = parse_filename(argv[3], program_arguments.filter_file);
+	error_code = parse_filename(argv[3], &(program_arguments.filter_file));
 	if (error_code < 0) {
 		fprintf(stderr, "Make sure that filter__file doesn't contain '/' characters.");
 		return -1;
 	}
 
-	error_code = parse_filename(argv[4], program_arguments.out_file);
+	error_code = parse_filename(argv[4], &(program_arguments.out_file));
 	if (error_code < 0) {
 		fprintf(stderr, "Make sure that out_file doesn't contain '/' characters.");
 		return -1;
@@ -102,14 +102,14 @@ int read_in_file(image *in) {
 		return -1;
 	}
 
-	char *buffer = (char *) calloc(sizeof(char), 1 << 16);
+	char *buffer = (char *) calloc(sizeof(char), 1 << 4);
 	if (buffer == NULL) {
 		return -2;
 	}
 
 	fscanf(in_file, "%s ", buffer);
-	memset(buffer, '\0', 1 << 16);
-
+	memset(buffer, '\0', 1 << 4);
+	
 	fscanf(in_file, "%d %d ", &(in->width), &(in->height));
 	fscanf(in_file, "%d ", &(in->max_value));
 	in->data = (unsigned int **) calloc(sizeof(unsigned int *), in->height);
@@ -147,6 +147,19 @@ int read_filter_file(filter *in) {
 	}
 
 	fscanf(filter_file, "%d", &(in->size));
+
+	in->data = (float **) calloc(sizeof(float *), in->size);
+	if (in->data == NULL) {
+		return -2;
+	}
+	unsigned int k;
+	for (k = 0; k < in->size; ++k) {
+		in->data[k] = (float *) calloc(sizeof(float), in->size);
+		if (in->data[k] == NULL) {
+			return -2;
+		}
+	}
+
 	unsigned int i, j;
 	for (i = 0; i < in->size; ++i) {
 		for (j = 0; j < in->size; ++j) {
@@ -181,7 +194,7 @@ unsigned int transform_value(unsigned int x, unsigned int y, image *in, filter *
 		for (j = 0; j < f->size; ++j) {
 			x1 = min(max(0, x - (int) (f->size / 2 + 0.5) + j), in->width - 1);
 			y1 = min(max(0, y - (int) (f->size / 2 + 0.5) + i), in->height - 1);
-			sum += in->data[y1][x1] * f->data[y][x];
+			sum += in->data[y1][x1] * f->data[j][i];
 		}
 	}
 
@@ -204,6 +217,8 @@ void * transform_segment(void *arguments) {
 		}
 	}
 
+	printf("Done transforming the segment between %d and %d.\n", begin, end);
+
 	return NULL;
 }
 
@@ -224,13 +239,18 @@ int dispatch_threads(image *in, image *out, filter *f, pthread_t **threads) {
 		}
 	}
 
+	*threads = (pthread_t *) calloc(sizeof(pthread_t), program_arguments.threads_num);
+	if (*threads == NULL) {
+		return -2;
+	}
+
 	for (i = 0; i < program_arguments.threads_num; ++i) {
 		transform_arguments *ta = (transform_arguments *) calloc(sizeof(*ta), 1);
 		ta->in = in;
 		ta->f = f;
 		ta->out = out;
 		ta->segment = i;
-		pthread_create(threads[i], NULL, transform_segment, (void *) ta);
+		pthread_create(&((*threads)[i]), NULL, transform_segment, (void *) ta);
 	}
 
 	return 0;
@@ -246,7 +266,7 @@ int sync_threads(pthread_t *threads) {
 	return 0;
 }
 
-int note_time(time_t delta) {
+int note_time(time_t delta, unsigned int image_height, unsigned int image_width, unsigned int filter_size) {
 	FILE *times_file = fopen(TIMES, "a+");
 	if (times_file == NULL) {
 		return -1;
@@ -255,7 +275,10 @@ int note_time(time_t delta) {
 	unsigned int milliseconds = delta % 1000;
 	unsigned int seconds = (delta / 1000) % 60;
 	unsigned int minutes = (delta / 1000) / 60;
-	fprintf(times_file, "Result: %d:%d.%d for %d threads.\n", minutes, seconds, milliseconds, program_arguments.threads_num);
+	fprintf(times_file, "Result: %02d:%02d.%04d for %d threads."
+			"\n\tImage size: %dx%d"
+			"\n\tFilter size: %dx%d"
+			"\n\n", minutes, seconds, milliseconds, program_arguments.threads_num, image_width, image_height, filter_size, filter_size);
 
 	fclose(times_file);
 	return 0;
@@ -315,7 +338,7 @@ int main(int argc, char *argv[]) {
 		return 0;
 	}
 
-	time_t start_time, end_time;
+	struct timeval start_time, end_time;
 
 	error_code = atexit(atexit_handler);
 	if (error_code != 0) {
@@ -344,7 +367,7 @@ int main(int argc, char *argv[]) {
 		return 4;
 	}
 
-	time(&start_time);
+	gettimeofday(&start_time, NULL);
 	pthread_t *threads;
 	error_code = dispatch_threads(&in, &out, &f, &threads);
 	if (error_code < 0) {
@@ -357,9 +380,9 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "Couldn't sync threads. Exiting...\n");
 		return 6;
 	}
-	time(&end_time);
+	gettimeofday(&end_time, NULL);
 
-	error_code = note_time(end_time - start_time);
+	error_code = note_time((end_time.tv_usec - start_time.tv_usec) / 1000 + (end_time.tv_sec - start_time.tv_sec) * 1000, in.height, in.width, f.size);
 	if (error_code < 0) {
 		fprintf(stderr, "Couldn't open %s for appending. Exiting...\n", TIMES);
 		return 7;
