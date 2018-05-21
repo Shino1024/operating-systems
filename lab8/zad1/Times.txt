@@ -1,0 +1,32 @@
+Result: 00:00.0110 for 1 threads.
+	Image size: 300x246
+	Filter size: 8x8
+
+Result: 00:00.0055 for 2 threads.
+	Image size: 300x246
+	Filter size: 8x8
+
+Result: 00:00.0032 for 4 threads.
+	Image size: 300x246
+	Filter size: 8x8
+
+Result: 00:00.0030 for 8 threads.
+	Image size: 300x246
+	Filter size: 8x8
+
+Result: 00:00.0629 for 1 threads.
+	Image size: 300x246
+	Filter size: 20x20
+
+Result: 00:00.0340 for 2 threads.
+	Image size: 300x246
+	Filter size: 20x20
+
+Result: 00:00.0186 for 4 threads.
+	Image size: 300x246
+	Filter size: 20x20
+
+Result: 00:00.0123 for 8 threads.
+	Image size: 300x246
+	Filter size: 20x20
+
