@@ -9,6 +9,10 @@
 #include <pthread.h>
 #include <limits.h>
 
+#define ANSI_GREEN "\x1b[32m"
+#define ANSI_YELLOW "\x1b[33m"
+#define ANSI_RESET "\x1b[0m"
+
 #define MAX_P 32
 #define MAX_K 128
 #define MAX_N 1048576
@@ -51,7 +55,8 @@ struct {
 	FILE *f;
 	char **buf;
 	unsigned int taken;
-	unsigned int last_pos;
+	unsigned int last_pos_in;
+	unsigned int last_pos_out;
 } buf;
 
 unsigned int parse_uint(char *uint, unsigned int limit) {
@@ -72,13 +77,16 @@ unsigned int parse_uint(char *uint, unsigned int limit) {
 
 void int_handler(int s) {
 	if (buf.f != NULL) {
+		pthread_mutex_lock(&(threads.single_elem));
 		fclose(buf.f);
+		buf.f = NULL;
 	}
+	printf(ANSI_RESET);
+	exit(0);
 }
 
 void err_quit(const char *msg, int code) {
-	perror(msg);
-	perror(" Exiting...\n");
+	fprintf(stderr, "\n%s Exiting...\n", msg);
 	exit(code);
 }
 
@@ -191,7 +199,7 @@ char * read_config() {
 		err_quit("Couldn't allocate memory for config.", 3);
 	}
 
-	if (fread(config, size, sizeof(char), f) != size) {
+	if (fread(config, size, sizeof(char), f) < 1) {
 		err_quit("Couldn't read contents from file.", 4);
 	}
 
@@ -206,148 +214,157 @@ void insert_line(unsigned int thread_no) {
 		err_quit("Couldn't allocate helper memory.", 3);
 	}
 
-	while (buf.buf[buf.last_pos] != NULL) {
-		if (buf.last_pos < args.n) {
-			++(buf.last_pos);
-		} else {
-			buf.last_pos = 0;
-		}
+	/*
+	while (buf.buf[buf.last_pos_in] != NULL) {
+		buf.last_pos_in = (buf.last_pos_in + 1) % args.n;
 	}
+	*/
 
-	fgets(line, MAX_L, buf.f);
-	printf("[INS %d AT %d] :: %s\n", thread_no, buf.last_pos, line);
-	buf.buf[buf.last_pos] = strdup(line);
-	if (buf.buf[buf.last_pos] == NULL) {
+	if (fgets(line, MAX_L, buf.f) == NULL) {
+		pthread_cond_signal(&(threads.empty));
+		pthread_mutex_unlock(&(threads.single_elem));
+		pthread_exit(NULL);
+	}
+	if (args.lm == BOTH) {
+		printf(ANSI_GREEN "[INS %d AT %d] :: %s" ANSI_RESET, thread_no, buf.last_pos_in, line);
+	}
+	buf.buf[buf.last_pos_in] = strdup(line);
+	if (buf.buf[buf.last_pos_in] == NULL) {
 		err_quit("Couldn't allocate buffer memory.", 3);
 	}
+	buf.last_pos_in = (buf.last_pos_in + 1) % args.n;
 
 	free(line);
 }
 
 void print_line(unsigned int thread_no) {
 	char condition_met = 0;
-	while (!condition_met) {
-		while (buf.buf[buf.last_pos] == NULL) {
-			if (buf.last_pos < args.n) {
-				++(buf.last_pos);
-			} else {
-				buf.last_pos = 0;
+	switch (args.sm) {
+		case LT:
+			if (strlen(buf.buf[buf.last_pos_out]) < args.l) {
+				condition_met = 1;
 			}
-		}
+			break;
 
-		switch (args.sm) {
-			case LT:
-				if (strlen(buf.buf[buf.last_pos]) < args.l) {
-					condition_met = 1;
-				}
-				break;
+		case EQ:
+			if (strlen(buf.buf[buf.last_pos_out]) == args.l) {
+				condition_met = 1;
+			}
+			break;
 
-			case EQ:
-				if (strlen(buf.buf[buf.last_pos]) == args.l) {
-					condition_met = 1;
-				}
-				break;
+		case GT:
+			if (strlen(buf.buf[buf.last_pos_out]) > args.l) {
+				condition_met = 1;
+			}
+			break;
 
-			case GT:
-				if (strlen(buf.buf[buf.last_pos]) > args.l) {
-					condition_met = 1;
-				}
-				break;
-
-			default:
-				break;
-		}
+		default:
+			break;
 	}
 
-	if (args.lm == BOTH) {
-		printf("[GET %d AT %d] :: %s", thread_no, buf.last_pos, buf.buf[buf.last_pos]);
+	if (condition_met) {
+		printf(ANSI_YELLOW "[GET %d AT %d] :: %s" ANSI_RESET, thread_no, buf.last_pos_out, buf.buf[buf.last_pos_out]);
 	}
 
-	free(buf.buf[buf.last_pos]);
-	buf.buf[buf.last_pos] = NULL;
+	free(buf.buf[buf.last_pos_out]);
+	buf.buf[buf.last_pos_out] = NULL;
+	buf.last_pos_out = (buf.last_pos_out + 1) % args.n;
 }
 
 void * producer_thread(void *arg) {
 	int thread_no = *((int *) arg);
+	free(arg);
 	for (;;) {
 		pthread_mutex_lock(&(threads.single_elem));
 
-		while (buf.taken == args.n) {
+		while (buf.taken >= args.n) {
 			pthread_cond_wait(&(threads.full), &(threads.single_elem));	
 		}
+
 		insert_line(thread_no);
 
 		++(buf.taken);
-
-		if (buf.taken == 1) {
-			pthread_cond_signal(&(threads.empty));
-		}
-
+		pthread_cond_signal(&(threads.empty));
 		pthread_mutex_unlock(&(threads.single_elem));
 	}
 
-	return NULL;
+	pthread_exit(NULL);
 }
 
 void * consumer_thread(void *arg) {
 	int thread_no = *((int *) arg);
+	free(arg);
 	for (;;) {
 		pthread_mutex_lock(&(threads.single_elem));
 
-		while (buf.taken == 0) {
+		while (buf.taken <= 0) {
 			pthread_cond_wait(&(threads.empty), &(threads.single_elem));
 		}
 
 		print_line(thread_no);
 
 		--(buf.taken);
-
-		if (buf.taken == args.n - 1) {
-			pthread_cond_signal(&(threads.full));
-		}
-
+		pthread_cond_signal(&(threads.full));
 		pthread_mutex_unlock(&(threads.single_elem));
 	}
 
-	return NULL;
-}
-
-void * watchdog_thread(void *arg) {
-	struct timespec ts;
-	pthread_cond_t deadline = PTHREAD_COND_INITIALIZER;
-	pthread_mutex_t tmp_mutex = PTHREAD_MUTEX_INITIALIZER;
-
-	ts.tv_sec = args.nk;
-	ts.tv_nsec = 0;
-	pthread_cond_timedwait(&deadline, &tmp_mutex, &ts);
-	printf("Watchdog has finished waiting.\n");
-	exit(0);
-
-	return NULL;
+	pthread_exit(NULL);
 }
 
 void dispatch_producers() {
 	unsigned int i;
 	for (i = 0; i < args.p; ++i) {
-		pthread_create(threads.producers + i, NULL, producer_thread, NULL);
+		int *arg = (int *) calloc(sizeof(int), 1);
+		if (arg == NULL) {
+			err_quit("Couldn't allocate helper memory.", 3);
+		}
+		*arg = i;
+		pthread_create(threads.producers + i, NULL, producer_thread, arg);
 	}
 }
 
 void dispatch_consumers() {
 	unsigned int i;
 	for (i = 0; i < args.k; ++i) {
-		pthread_create(threads.consumers + i, NULL, consumer_thread, NULL);
+		int *arg = (int *) calloc(sizeof(int), 1);
+		if (arg == NULL) {
+			err_quit("Couldn't allocate helper memory.", 3);
+		}
+		*arg = i;
+		pthread_create(threads.consumers + i, NULL, consumer_thread, arg);
 	}
 }
 
-void dispatch_watchdog() {
-	//pthread_create(watchdog_id, NULL, watchdog_thread, NULL);
+void sync_threads() {
+	unsigned int i;
+	for (i = 0; i < args.p; ++i) {
+		pthread_join(threads.producers[i], (void **) NULL);
+	}
+
+	for (i = 0; i < args.k; ++i) {
+		pthread_cancel(threads.consumers[i]);
+	}
+}
+
+void dispatch_threads() {
+	buf.f = fopen(args.filename, "r");
+	if (buf.f == NULL) {
+		err_quit("Couldn't open the file from config.", 4);
+	}
+
+	dispatch_producers();
+	dispatch_consumers();
+	if (args.nk > 0) {
+		alarm((int) args.nk);
+	}
+
+	sync_threads();
+
+	fclose(buf.f);
 }
 
 void atexit_handler() {
-	if (buf.f != NULL) {
-		fclose(buf.f);
-	}
+	printf(ANSI_RESET);
 }
 
 int main(int argc, char *argv[]) {
@@ -372,12 +389,6 @@ int main(int argc, char *argv[]) {
 	char *config = read_config();
 	parse_args(config);
 
-	if (args.nk == 0) {
-		if (signal(SIGINT, int_handler) == SIG_ERR) {
-			err_quit("Couldn't set up a SIGINT signal handler.", 1);
-		}
-	}
-
 	if (atexit(atexit_handler) != 0) {
 		err_quit("Couldn't set up an exit handler.", 1);
 	}
@@ -396,16 +407,12 @@ int main(int argc, char *argv[]) {
 	if (buf.buf == NULL) {
 		err_quit("Couldn't allocate memory for buffer.", 3);
 	}
-
-	buf.f = fopen(args.filename, "r");
-
-	dispatch_producers();
-	dispatch_consumers();
-	if (args.nk > 0) {
-		dispatch_watchdog();
+	unsigned int i;
+	for (i = 0; i < args.n; ++i) {
+		buf.buf[i] = NULL;
 	}
 
-	fclose(buf.f);
+	dispatch_threads();
 
 	return 0;
 }
