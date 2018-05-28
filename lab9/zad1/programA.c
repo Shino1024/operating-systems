@@ -77,7 +77,6 @@ unsigned int parse_uint(char *uint, unsigned int limit) {
 
 void int_handler(int s) {
 	if (buf.f != NULL) {
-		pthread_mutex_lock(&(threads.single_elem));
 		fclose(buf.f);
 		buf.f = NULL;
 	}
