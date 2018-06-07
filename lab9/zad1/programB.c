@@ -24,7 +24,9 @@
 struct {
 	pthread_t *producers;
 	pthread_t *consumers;
-	pthread_mutex_t single_elem;
+	sem_t prod;
+	sem_t cons;
+	sem_t *buf_sem;
 	sem_t num_in;
 	sem_t num_out;
 } threads;
@@ -77,11 +79,6 @@ unsigned int parse_uint(char *uint, unsigned int limit) {
 }
 
 void int_handler(int s) {
-	if (buf.f != NULL) {
-		pthread_mutex_lock(&(threads.single_elem));
-		fclose(buf.f);
-		buf.f = NULL;
-	}
 	printf(ANSI_RESET);
 	exit(0);
 }
@@ -274,13 +271,17 @@ void * producer_thread(void *arg) {
 	free(arg);
 	for (;;) {
 		char *line = get_line();
+
+		sem_wait(&(threads.cons));
 		sem_wait(&(threads.num_out));
-		pthread_mutex_lock(&(threads.single_elem));
+		int in = buf.last_pos_in;
+		sem_wait(threads.buf_sem + in);
 		insert_line(thread_no, line);
 
 		++(buf.taken);
-		pthread_mutex_unlock(&(threads.single_elem));
+		sem_post(threads.buf_sem + in);
 		sem_post(&(threads.num_in));
+		sem_post(&(threads.cons));
 	}
 
 	pthread_exit(NULL);
@@ -290,14 +291,16 @@ void * consumer_thread(void *arg) {
 	int thread_no = *((int *) arg);
 	free(arg);
 	for (;;) {
+		sem_wait(&(threads.prod));
 		sem_wait(&(threads.num_in));
-		pthread_mutex_lock(&(threads.single_elem));
 
+		int out = buf.last_pos_out;
 		print_line(thread_no);
 
 		--(buf.taken);
+		sem_post(threads.buf_sem + out);
 		sem_post(&(threads.num_out));
-		pthread_mutex_unlock(&(threads.single_elem));
+		sem_post(&(threads.prod));
 	}
 
 	pthread_exit(NULL);
@@ -356,6 +359,15 @@ void dispatch_threads() {
 }
 
 void atexit_handler() {
+	sem_destroy(&(threads.num_in));
+	sem_destroy(&(threads.num_out));
+	sem_destroy(&(threads.prod));
+	sem_destroy(&(threads.cons));
+	unsigned int i;
+	for (i = 0; i < args.n; ++i) {
+		sem_destroy(threads.buf_sem + i);
+	}
+
 	printf(ANSI_RESET);
 }
 
@@ -366,19 +378,34 @@ int main(int argc, char *argv[]) {
 	}
 	args.config_filename = argv[1];
 
-	if (pthread_mutex_init(&(threads.single_elem), NULL) != 0) {
-		err_quit("Couldn't init a mutex.", 1);
-	}
-
 	if (sem_init(&(threads.num_in), 0, 0) < 0) {
-		err_quit("Couldn't init an elements-in-buffer semaphore.", 1);
+		err_quit("Couldn't init a semaphore.", 1);
 	}
 
 	char *config = read_config();
 	parse_args(config);
 
 	if (sem_init(&(threads.num_out), 0, args.n) < 0) {
-		err_quit("Couldn't init an elements-NOT-in-buffer semaphore.", 1);
+		err_quit("Couldn't init a semaphore.", 1);
+	}
+
+	if (sem_init(&(threads.prod), 0, 1) < 0) {
+		err_quit("Couldn't init a semaphore.", 1);
+	}
+
+	if (sem_init(&(threads.cons), 0, 1) < 0) {
+		err_quit("Couldn't init a semaphore.", 1);
+	}
+
+	threads.buf_sem = (sem_t *) calloc(sizeof(sem_t), args.n);
+	if (threads.buf_sem == NULL) {
+		err_quit("Couldn't allocate momery.", 3);
+	}
+	unsigned int i;
+	for (i = 0; i < args.n; ++i) {
+		if (sem_init(threads.buf_sem + i, 0, 1) < 0) {
+			err_quit("Couldn't init a semaphore.", 1);
+		}
 	}
 
 	if (atexit(atexit_handler) != 0) {
@@ -399,7 +426,6 @@ int main(int argc, char *argv[]) {
 	if (buf.buf == NULL) {
 		err_quit("Couldn't allocate memory for buffer.", 3);
 	}
-	unsigned int i;
 	for (i = 0; i < args.n; ++i) {
 		buf.buf[i] = NULL;
 	}
