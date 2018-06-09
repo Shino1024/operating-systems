@@ -1,6 +1,7 @@
 typedef enum message_type {
 	REGISTER,
 	NAME_BUSY,
+	ALREADY_FULL,
 	REGISTERED,
 	PING,
 	PONG,
@@ -27,6 +28,6 @@ typedef struct expression {
 typedef struct message {
 	message_type message_type;
 	unsigned int message_length;
-	expression expression;
+	void *data;
 } message;
 
